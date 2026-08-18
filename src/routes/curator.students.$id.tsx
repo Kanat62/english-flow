@@ -251,7 +251,10 @@ function StudentCard() {
               />
               <button
                 onClick={() => {
-                  if (!meetForm.url) return toast.error("Добавьте ссылку Google Meet");
+                  if (!meetForm.url) {
+                    toast.error("Добавьте ссылку Google Meet");
+                    return;
+                  }
                   const [h, min] = meetForm.time.split(":");
                   addMeeting({
                     id: `m-${Date.now()}`,
