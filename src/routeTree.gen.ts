@@ -16,6 +16,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as CuratorIndexRouteImport } from './routes/curator.index'
 import { Route as CuratorCourseRouteImport } from './routes/curator.course'
+import { Route as CuratorScheduleRouteImport } from './routes/curator.schedule'
 import { Route as LessonOrderRouteImport } from './routes/lesson.$order'
 import { Route as CuratorStudentsIndexRouteImport } from './routes/curator.students.index'
 import { Route as CuratorStudentsIdRouteImport } from './routes/curator.students.$id'
@@ -55,6 +56,11 @@ const CuratorCourseRoute = CuratorCourseRouteImport.update({
   path: '/curator/course',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CuratorScheduleRoute = CuratorScheduleRouteImport.update({
+  id: '/curator/schedule',
+  path: '/curator/schedule',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LessonOrderRoute = LessonOrderRouteImport.update({
   id: '/lesson/$order',
   path: '/lesson/$order',
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/schedule': typeof ScheduleRoute
   '/curator/course': typeof CuratorCourseRoute
+  '/curator/schedule': typeof CuratorScheduleRoute
   '/lesson/$order': typeof LessonOrderRoute
   '/curator/': typeof CuratorIndexRoute
   '/curator/students/$id': typeof CuratorStudentsIdRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/schedule': typeof ScheduleRoute
   '/curator/course': typeof CuratorCourseRoute
+  '/curator/schedule': typeof CuratorScheduleRoute
   '/lesson/$order': typeof LessonOrderRoute
   '/curator': typeof CuratorIndexRoute
   '/curator/students/$id': typeof CuratorStudentsIdRoute
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/schedule': typeof ScheduleRoute
   '/curator/course': typeof CuratorCourseRoute
+  '/curator/schedule': typeof CuratorScheduleRoute
   '/lesson/$order': typeof LessonOrderRoute
   '/curator/': typeof CuratorIndexRoute
   '/curator/students/$id': typeof CuratorStudentsIdRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/schedule'
     | '/curator/course'
+    | '/curator/schedule'
     | '/lesson/$order'
     | '/curator/'
     | '/curator/students/$id'
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/schedule'
     | '/curator/course'
+    | '/curator/schedule'
     | '/lesson/$order'
     | '/curator'
     | '/curator/students/$id'
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/schedule'
     | '/curator/course'
+    | '/curator/schedule'
     | '/lesson/$order'
     | '/curator/'
     | '/curator/students/$id'
@@ -154,6 +166,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   ScheduleRoute: typeof ScheduleRoute
   CuratorCourseRoute: typeof CuratorCourseRoute
+  CuratorScheduleRoute: typeof CuratorScheduleRoute
   LessonOrderRoute: typeof LessonOrderRoute
   CuratorIndexRoute: typeof CuratorIndexRoute
   CuratorStudentsIdRoute: typeof CuratorStudentsIdRoute
@@ -211,6 +224,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CuratorCourseRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/curator/schedule': {
+      id: '/curator/schedule'
+      path: '/curator/schedule'
+      fullPath: '/curator/schedule'
+      preLoaderRoute: typeof CuratorScheduleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lesson/$order': {
       id: '/lesson/$order'
       path: '/lesson/$order'
@@ -242,6 +262,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   ScheduleRoute: ScheduleRoute,
   CuratorCourseRoute: CuratorCourseRoute,
+  CuratorScheduleRoute: CuratorScheduleRoute,
   LessonOrderRoute: LessonOrderRoute,
   CuratorIndexRoute: CuratorIndexRoute,
   CuratorStudentsIdRoute: CuratorStudentsIdRoute,
