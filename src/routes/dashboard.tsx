@@ -46,7 +46,7 @@ function Dashboard() {
   const student = currentStudent!;
   const access = accessStatus(student);
   const order = currentLessonOrder(student);
-  const lesson = LESSONS[order - 1];
+  const lesson = LESSONS[order - 1] ?? LESSONS[0]!;
   const progress = progressOf(student);
   const meetings = meetingsFor(student).filter(
     (m) => m.status === "scheduled" && m.date >= TODAY,
