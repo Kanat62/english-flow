@@ -81,20 +81,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state, ready]);
 
-  const login = useCallback((login: string, password: string): Role | null => {
-    const l = login.trim().toLowerCase();
-    if (l === CURATOR.login && password === CURATOR.password) {
-      setState((s) => ({ ...s, session: { role: "curator", id: CURATOR.id } }));
-      return "curator";
-    }
-    let found: Student | undefined;
-    setState((s) => {
-      found = s.students.find((st) => st.login === l && st.password === password);
-      return found ? { ...s, session: { role: "student", id: found.id } } : s;
-    });
-    const direct = STUDENTS.find((st) => st.login === l && st.password === password);
-    return found || direct ? "student" : null;
-  }, []);
+  const login = useCallback(
+    (login: string, password: string): Role | null => {
+      const l = login.trim().toLowerCase();
+      if (l === CURATOR.login && password === CURATOR.password) {
+        setState((s) => ({ ...s, session: { role: "curator", id: CURATOR.id } }));
+        return "curator";
+      }
+      const found = state.students.find((st) => st.login === l && st.password === password);
+      if (found) {
+        setState((s) => ({ ...s, session: { role: "student", id: found.id } }));
+        return "student";
+      }
+      return null;
+    },
+    [state.students],
+  );
 
   const logout = useCallback(() => setState((s) => ({ ...s, session: null })), []);
 
