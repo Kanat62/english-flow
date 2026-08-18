@@ -40,7 +40,10 @@ function CuratorSchedule() {
   const days = [...new Set(sorted.map((m) => m.date))];
 
   const create = () => {
-    if (!f.url) return toast.error("Добавьте ссылку Google Meet");
+    if (!f.url) {
+      toast.error("Добавьте ссылку Google Meet");
+      return;
+    }
     const [h, min] = f.time.split(":");
     const student = students.find((s) => s.id === f.studentId);
     addMeeting({
