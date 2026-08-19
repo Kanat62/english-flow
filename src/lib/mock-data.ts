@@ -1,25 +1,50 @@
-// Тестовые данные платформы (без бэкенда).
+// Тестовые данные платформы akcent_academy (без бэкенда).
 
 export type Role = "student" | "curator";
 export type CourseType = "GROUP" | "INDIVIDUAL";
 export type AccessStatus = "active" | "expired" | "disabled";
+export type LessonStatus = "draft" | "published" | "archived";
 export type LessonState = "locked" | "available" | "completed";
 export type ProgressStatus = "not_started" | "in_progress" | "completed";
 export type MeetingStatus = "scheduled" | "completed" | "cancelled";
-export type Level = "A1" | "A2" | "B1" | "B2" | "C1";
+
+export const BRAND = "akcent_academy";
+export const COMPLETE_THRESHOLD = 90;
+
+export interface Video {
+  id: string;
+  title: string;
+  url: string;
+  duration: string;
+  createdAt: string;
+}
 
 export interface Lesson {
   id: string;
+  courseId: string;
   order: number;
   title: string;
   description: string;
-  videoUrl: string;
-  duration: string;
   block: string;
+  videoId: string | null;
+  status: LessonStatus;
+  publishedAt: string | null;
+}
+
+export interface Course {
+  id: string;
+  name: string;
+  type: CourseType;
+  duration: string;
+  months: number;
+  price: string;
+  description: string;
+  status: "active" | "archived";
 }
 
 export interface Meeting {
   id: string;
+  courseId: string;
   lessonOrder: number;
   studentId: string | "group";
   title: string;
@@ -46,17 +71,49 @@ export interface Student {
   firstName: string;
   lastName: string;
   phone: string;
-  email: string;
-  level: Level;
+  courseId: string;
   type: CourseType;
   startDate: string;
   endDate: string;
   status: AccessStatus;
-  openedUpTo: number; // максимальный открытый урок (order)
-  completed: number[]; // завершённые уроки
   lastActivity: string;
   avatarTone: string;
 }
+
+/** прогресс просмотра видео: ключ `${studentId}:${lessonId}` */
+export interface Progress {
+  percent: number;
+  status: ProgressStatus;
+  updatedAt: string;
+}
+
+export const TODAY = "2026-08-18";
+
+export const TEST_VIDEO_URL =
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+
+export const COURSES: Course[] = [
+  {
+    id: "c-group",
+    name: "English — групповой",
+    type: "GROUP",
+    duration: "3 месяца",
+    months: 3,
+    price: "10 000 сом",
+    description: "Групповой курс английского: теория в записи и живые практики в Google Meet.",
+    status: "active",
+  },
+  {
+    id: "c-ind",
+    name: "English — индивидуальный",
+    type: "INDIVIDUAL",
+    duration: "1 месяц",
+    months: 1,
+    price: "25 000 сом",
+    description: "Интенсив один на один с куратором: гибкий график и персональные практики.",
+    status: "active",
+  },
+];
 
 const titles: [string, string, string][] = [
   ["Знакомство и алфавит", "Greetings, the alphabet and first phrases", "Foundation"],
@@ -115,26 +172,36 @@ const titles: [string, string, string][] = [
   ["Финальный разбор", "Итоговая практика курса", "Speaking"],
 ];
 
-export const LESSONS: Lesson[] = titles.map(([title, description, block], i) => ({
-  id: `lesson-${i + 1}`,
-  order: i + 1,
-  title,
-  description,
-  block,
-  videoUrl:
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-  duration: `${10 + ((i * 7) % 12)}:${String((i * 13) % 60).padStart(2, "0")}`,
-}));
+export const TOTAL_LESSONS = titles.length;
 
-export const COURSE = {
-  id: "course-en",
-  name: "English",
-  totalLessons: LESSONS.length,
-  variants: [
-    { type: "GROUP" as CourseType, duration: "3 месяца", price: "10 000 сом" },
-    { type: "INDIVIDUAL" as CourseType, duration: "1 месяц", price: "25 000 сом" },
-  ],
-};
+export const VIDEOS: Video[] = [
+  {
+    id: "v-demo",
+    title: "Демо-видео курса",
+    url: TEST_VIDEO_URL,
+    duration: "00:15",
+    createdAt: "2026-08-01",
+  },
+];
+
+function buildLessons(courseId: string, publishedUpTo: number): Lesson[] {
+  return titles.map(([title, description, block], i) => ({
+    id: `${courseId}-l${i + 1}`,
+    courseId,
+    order: i + 1,
+    title,
+    description,
+    block,
+    videoId: i === 0 ? "v-demo" : null,
+    status: i + 1 <= publishedUpTo ? ("published" as LessonStatus) : ("draft" as LessonStatus),
+    publishedAt: i + 1 <= publishedUpTo ? "2026-08-01" : null,
+  }));
+}
+
+export const LESSONS: Lesson[] = [
+  ...buildLessons("c-group", 18),
+  ...buildLessons("c-ind", 10),
+];
 
 export const STUDENTS: Student[] = [
   {
@@ -144,14 +211,11 @@ export const STUDENTS: Student[] = [
     firstName: "Канат",
     lastName: "Уметов",
     phone: "+996 700 112 233",
-    email: "kanat@mail.com",
-    level: "B1",
+    courseId: "c-group",
     type: "GROUP",
     startDate: "2026-08-18",
     endDate: "2026-11-18",
     status: "active",
-    openedUpTo: 18,
-    completed: Array.from({ length: 17 }, (_, i) => i + 1),
     lastActivity: "2026-08-18",
     avatarTone: "var(--tone-1)",
   },
@@ -162,14 +226,11 @@ export const STUDENTS: Student[] = [
     firstName: "Алина",
     lastName: "Ким",
     phone: "+996 555 908 771",
-    email: "alina@mail.com",
-    level: "A2",
+    courseId: "c-group",
     type: "GROUP",
     startDate: "2026-08-18",
     endDate: "2026-11-18",
     status: "active",
-    openedUpTo: 12,
-    completed: Array.from({ length: 12 }, (_, i) => i + 1),
     lastActivity: "2026-08-17",
     avatarTone: "var(--tone-2)",
   },
@@ -180,14 +241,11 @@ export const STUDENTS: Student[] = [
     firstName: "Айбек",
     lastName: "Сатыбалдиев",
     phone: "+996 707 445 010",
-    email: "aibek@mail.com",
-    level: "B1",
+    courseId: "c-ind",
     type: "INDIVIDUAL",
     startDate: "2026-08-05",
     endDate: "2026-09-05",
     status: "active",
-    openedUpTo: 8,
-    completed: [1, 2, 3, 4, 5, 6, 7],
     lastActivity: "2026-08-18",
     avatarTone: "var(--tone-3)",
   },
@@ -198,14 +256,11 @@ export const STUDENTS: Student[] = [
     firstName: "Нурай",
     lastName: "Асанова",
     phone: "+996 559 220 118",
-    email: "nurai@mail.com",
-    level: "A1",
+    courseId: "c-group",
     type: "GROUP",
     startDate: "2026-05-10",
     endDate: "2026-08-10",
     status: "expired",
-    openedUpTo: 54,
-    completed: Array.from({ length: 54 }, (_, i) => i + 1),
     lastActivity: "2026-08-09",
     avatarTone: "var(--tone-4)",
   },
@@ -216,14 +271,11 @@ export const STUDENTS: Student[] = [
     firstName: "Эльмира",
     lastName: "Джолдошева",
     phone: "+996 700 330 447",
-    email: "elmira@mail.com",
-    level: "B2",
+    courseId: "c-ind",
     type: "INDIVIDUAL",
     startDate: "2026-08-12",
     endDate: "2026-09-12",
     status: "disabled",
-    openedUpTo: 4,
-    completed: [1, 2],
     lastActivity: "2026-08-14",
     avatarTone: "var(--tone-5)",
   },
@@ -240,6 +292,7 @@ export const CURATOR = {
 export const MEETINGS: Meeting[] = [
   {
     id: "m1",
+    courseId: "c-group",
     lessonOrder: 18,
     studentId: "group",
     title: "Практика: Present Perfect",
@@ -252,6 +305,7 @@ export const MEETINGS: Meeting[] = [
   },
   {
     id: "m2",
+    courseId: "c-group",
     lessonOrder: 19,
     studentId: "group",
     title: "Практика: Present Perfect vs Past Simple",
@@ -264,6 +318,7 @@ export const MEETINGS: Meeting[] = [
   },
   {
     id: "m3",
+    courseId: "c-group",
     lessonOrder: 17,
     studentId: "group",
     title: "Практика: Past Simple",
@@ -276,6 +331,7 @@ export const MEETINGS: Meeting[] = [
   },
   {
     id: "m4",
+    courseId: "c-ind",
     lessonOrder: 8,
     studentId: "s3",
     title: "Индивидуальная практика: Present Simple",
@@ -306,4 +362,29 @@ export const NOTES: Note[] = [
   },
 ];
 
-export const TODAY = "2026-08-18";
+/** стартовый прогресс просмотра */
+export const PROGRESS: Record<string, Progress> = (() => {
+  const seed: Record<string, Progress> = {};
+  const fill = (studentId: string, courseId: string, done: number, partial?: [number, number]) => {
+    for (let i = 1; i <= done; i++) {
+      seed[`${studentId}:${courseId}-l${i}`] = {
+        percent: 100,
+        status: "completed",
+        updatedAt: TODAY,
+      };
+    }
+    if (partial) {
+      seed[`${studentId}:${courseId}-l${partial[0]}`] = {
+        percent: partial[1],
+        status: "in_progress",
+        updatedAt: TODAY,
+      };
+    }
+  };
+  fill("s1", "c-group", 15, [16, 42]);
+  fill("s2", "c-group", 10, [11, 18]);
+  fill("s3", "c-ind", 7, [8, 64]);
+  fill("s4", "c-group", 18);
+  fill("s5", "c-ind", 2);
+  return seed;
+})();
