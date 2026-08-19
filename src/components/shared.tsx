@@ -1,5 +1,4 @@
-import { Play } from "lucide-react";
-import { useRef, useState, type ReactNode, type SyntheticEvent } from "react";
+import { useRef, type ReactNode, type SyntheticEvent } from "react";
 import { cn } from "@/lib/utils";
 import type { AccessStatus, LessonState, MeetingStatus } from "@/lib/mock-data";
 
@@ -191,7 +190,6 @@ export function VideoPlayer({
   onTimeUpdate?: (e: SyntheticEvent<HTMLVideoElement>) => void;
   onEnded?: (e: SyntheticEvent<HTMLVideoElement>) => void;
 }) {
-  const [playing, setPlaying] = useState(false);
   const ref = useRef<HTMLVideoElement>(null);
 
   return (
@@ -206,24 +204,10 @@ export function VideoPlayer({
         onError={onError}
         onTimeUpdate={onTimeUpdate}
         onEnded={onEnded}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
         className="absolute inset-0 size-full"
       >
         <source src={src} type="video/mp4" />
       </video>
-      {!playing && (
-        <button
-          type="button"
-          onClick={() => ref.current?.play()}
-          aria-label="Смотреть видео"
-          className="absolute inset-0 grid place-items-center bg-black/10 transition hover:bg-black/25"
-        >
-          <span className="grid size-16 place-items-center rounded-full gradient-primary text-primary-foreground shadow-glow transition hover:scale-105">
-            <Play className="size-7 translate-x-0.5 fill-current" />
-          </span>
-        </button>
-      )}
     </div>
   );
 }
