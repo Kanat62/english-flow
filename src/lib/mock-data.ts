@@ -6,7 +6,6 @@ export type AccessStatus = "active" | "expired" | "disabled";
 export type LessonState = "locked" | "available" | "completed";
 export type ProgressStatus = "not_started" | "in_progress" | "completed";
 export type MeetingStatus = "scheduled" | "completed" | "cancelled";
-export type Level = "A1" | "A2" | "B1" | "B2" | "C1";
 
 export interface Lesson {
   id: string;
@@ -46,14 +45,13 @@ export interface Student {
   firstName: string;
   lastName: string;
   phone: string;
-  email: string;
-  level: Level;
   type: CourseType;
   startDate: string;
   endDate: string;
   status: AccessStatus;
   openedUpTo: number; // максимальный открытый урок (order)
   completed: number[]; // завершённые уроки
+  watched: Record<number, number>; // order -> % просмотра видео (0-100)
   lastActivity: string;
   avatarTone: string;
 }
@@ -121,8 +119,7 @@ export const LESSONS: Lesson[] = titles.map(([title, description, block], i) => 
   title,
   description,
   block,
-  videoUrl:
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+  videoUrl: "/Video%20Project%201.mp4",
   duration: `${10 + ((i * 7) % 12)}:${String((i * 13) % 60).padStart(2, "0")}`,
 }));
 
@@ -144,14 +141,13 @@ export const STUDENTS: Student[] = [
     firstName: "Канат",
     lastName: "Уметов",
     phone: "+996 700 112 233",
-    email: "kanat@mail.com",
-    level: "B1",
     type: "GROUP",
     startDate: "2026-08-18",
     endDate: "2026-11-18",
     status: "active",
-    openedUpTo: 18,
-    completed: Array.from({ length: 17 }, (_, i) => i + 1),
+    openedUpTo: 1,
+    completed: [],
+    watched: {},
     lastActivity: "2026-08-18",
     avatarTone: "var(--tone-1)",
   },
@@ -162,14 +158,13 @@ export const STUDENTS: Student[] = [
     firstName: "Алина",
     lastName: "Ким",
     phone: "+996 555 908 771",
-    email: "alina@mail.com",
-    level: "A2",
     type: "GROUP",
     startDate: "2026-08-18",
     endDate: "2026-11-18",
     status: "active",
-    openedUpTo: 12,
-    completed: Array.from({ length: 12 }, (_, i) => i + 1),
+    openedUpTo: 1,
+    completed: [],
+    watched: {},
     lastActivity: "2026-08-17",
     avatarTone: "var(--tone-2)",
   },
@@ -180,14 +175,13 @@ export const STUDENTS: Student[] = [
     firstName: "Айбек",
     lastName: "Сатыбалдиев",
     phone: "+996 707 445 010",
-    email: "aibek@mail.com",
-    level: "B1",
     type: "INDIVIDUAL",
     startDate: "2026-08-05",
     endDate: "2026-09-05",
     status: "active",
-    openedUpTo: 8,
-    completed: [1, 2, 3, 4, 5, 6, 7],
+    openedUpTo: 1,
+    completed: [],
+    watched: {},
     lastActivity: "2026-08-18",
     avatarTone: "var(--tone-3)",
   },
@@ -198,14 +192,13 @@ export const STUDENTS: Student[] = [
     firstName: "Нурай",
     lastName: "Асанова",
     phone: "+996 559 220 118",
-    email: "nurai@mail.com",
-    level: "A1",
     type: "GROUP",
     startDate: "2026-05-10",
     endDate: "2026-08-10",
     status: "expired",
-    openedUpTo: 54,
-    completed: Array.from({ length: 54 }, (_, i) => i + 1),
+    openedUpTo: 1,
+    completed: [],
+    watched: {},
     lastActivity: "2026-08-09",
     avatarTone: "var(--tone-4)",
   },
@@ -216,14 +209,13 @@ export const STUDENTS: Student[] = [
     firstName: "Эльмира",
     lastName: "Джолдошева",
     phone: "+996 700 330 447",
-    email: "elmira@mail.com",
-    level: "B2",
     type: "INDIVIDUAL",
     startDate: "2026-08-12",
     endDate: "2026-09-12",
     status: "disabled",
-    openedUpTo: 4,
-    completed: [1, 2],
+    openedUpTo: 1,
+    completed: [],
+    watched: {},
     lastActivity: "2026-08-14",
     avatarTone: "var(--tone-5)",
   },

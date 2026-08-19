@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CalendarDays, Plus, Video } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { LESSONS, TODAY, type CourseType, type MeetingStatus } from "@/lib/mock-data";
+import { TODAY, type CourseType, type MeetingStatus } from "@/lib/mock-data";
 import { formatDate, relativeDay, useApp } from "@/lib/store";
 import { CuratorShell } from "@/components/CuratorShell";
 import { EmptyState, MeetingPill, Pill, SectionTitle } from "@/components/shared";
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/curator/schedule")({
 });
 
 function CuratorSchedule() {
-  const { meetings, addMeeting, updateMeeting, students } = useApp();
+  const { meetings, addMeeting, updateMeeting, students, lessons } = useApp();
   const [f, setF] = useState({
     lessonOrder: 18,
     studentId: "group",
@@ -50,7 +50,7 @@ function CuratorSchedule() {
       id: `m-${Date.now()}`,
       lessonOrder: f.lessonOrder,
       studentId: f.studentId,
-      title: `Практика: ${LESSONS[f.lessonOrder - 1]?.title ?? ""}`,
+      title: `Практика: ${lessons[f.lessonOrder - 1]?.title ?? ""}`,
       date: f.date,
       startTime: f.time,
       endTime: `${String((Number(h) + 1) % 24).padStart(2, "0")}:${min}`,
@@ -82,7 +82,7 @@ function CuratorSchedule() {
             value={f.lessonOrder}
             onChange={(e) => setF({ ...f, lessonOrder: Number(e.target.value) })}
           >
-            {LESSONS.map((l) => (
+            {lessons.map((l) => (
               <option key={l.id} value={l.order}>
                 {l.order}. {l.title}
               </option>

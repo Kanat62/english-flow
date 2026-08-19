@@ -23,7 +23,7 @@ import { AccessPill, Avatar, EmptyState, ProgressBar, SectionTitle } from "@/com
 export const Route = createFileRoute("/curator/")({
   head: () => ({
     meta: [
-      { title: "Кабинет куратора — English Learning Platform" },
+      { title: "Кабинет куратора — akcent_academy" },
       {
         name: "description",
         content: "Обзор учеников, сегодняшние практики и ученики без активности.",
@@ -161,7 +161,7 @@ function CuratorDashboard() {
                   {s.firstName} {s.lastName}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {s.type === "GROUP" ? "Group" : "Individual"} · {s.level} · урок{" "}
+                  {s.type === "GROUP" ? "Group" : "Individual"} · урок{" "}
                   {currentLessonOrder(s)}/{LESSONS.length}
                 </p>
                 <ProgressBar value={progressOf(s)} className="mt-2 h-1.5 max-w-48" />

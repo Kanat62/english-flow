@@ -7,17 +7,18 @@ import {
   Lock,
   Video,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { toast } from "sonner";
-import { LESSONS } from "@/lib/mock-data";
-import { formatDate, lessonState, useApp } from "@/lib/store";
+import { formatDate, lessonState, useApp, watchedPctOf } from "@/lib/store";
 import { StudentShell } from "@/components/StudentShell";
-import { EmptyState, LessonPill, Pill } from "@/components/shared";
+import { EmptyState, LessonPill, Pill, ProgressBar, VideoPlayer } from "@/components/shared";
+
+const COMPLETE_THRESHOLD = 0.9;
 
 export const Route = createFileRoute("/lesson/$order")({
   head: () => ({
     meta: [
-      { title: "Урок — English Learning Platform" },
+      { title: "Урок — akcent_academy" },
       { name: "description", content: "Видеоурок, теория и практика по теме курса." },
       { property: "og:title", content: "Видеоурок курса English" },
       { property: "og:description", content: "Теория в видео и практика в Google Meet." },
@@ -32,13 +33,22 @@ export const Route = createFileRoute("/lesson/$order")({
 
 function LessonPage() {
   const { order } = Route.useParams();
-  const { currentStudent, completeLesson, meetingsFor } = useApp();
+  const { currentStudent, completeLesson, updateWatchProgress, meetingsFor, testVideoUrl, lessons } =
+    useApp();
   const navigate = useNavigate();
   const student = currentStudent!;
   const num = Number(order);
-  const lesson = LESSONS.find((l) => l.order === num);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const lesson = lessons.find((l) => l.order === num);
   const [videoError, setVideoError] = useState(false);
+  const [watchedPct, setWatchedPct] = useState(0);
+  const autoCompletedRef = useRef(false);
+
+  useEffect(() => {
+    setWatchedPct(watchedPctOf(student, num));
+    autoCompletedRef.current = false;
+    setVideoError(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [num]);
 
   if (!lesson) {
     return (
@@ -61,9 +71,27 @@ function LessonPage() {
   }
 
   const practice = meetingsFor(student).find((m) => m.lessonOrder === lesson.order);
-  const prev = LESSONS.find((l) => l.order === lesson.order - 1);
-  const next = LESSONS.find((l) => l.order === lesson.order + 1);
+  const prev = lessons.find((l) => l.order === lesson.order - 1);
+  const next = lessons.find((l) => l.order === lesson.order + 1);
   const nextLocked = next ? next.order > student.openedUpTo : true;
+  const videoSrc = testVideoUrl || lesson.videoUrl;
+
+  const handleProgress = (e: SyntheticEvent<HTMLVideoElement>) => {
+    const v = e.currentTarget;
+    if (!v.duration || Number.isNaN(v.duration)) return;
+    const pct = Math.min(100, Math.round((v.currentTime / v.duration) * 100));
+    setWatchedPct((prev) => Math.max(prev, pct));
+    updateWatchProgress(student.id, lesson.order, pct);
+    if (
+      !autoCompletedRef.current &&
+      state !== "completed" &&
+      v.currentTime / v.duration >= COMPLETE_THRESHOLD
+    ) {
+      autoCompletedRef.current = true;
+      completeLesson(student.id, lesson.order);
+      toast.success("Урок завершён — вы посмотрели 90%+ видео");
+    }
+  };
 
   return (
     <div className="space-y-6 rise-in">
@@ -76,17 +104,14 @@ function LessonPage() {
             <p>Попробуйте обновить страницу.</p>
           </div>
         ) : (
-          <video
-            ref={videoRef}
-            controls
-            playsInline
-            preload="metadata"
+          <VideoPlayer
+            src={videoSrc}
             onError={() => setVideoError(true)}
-            className="aspect-video w-full bg-black"
+            onTimeUpdate={handleProgress}
+            onEnded={handleProgress}
+            className="aspect-video w-full"
             poster="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='9'><rect width='16' height='9' fill='%23231f36'/></svg>"
-          >
-            <source src={lesson.videoUrl} type="video/mp4" />
-          </video>
+          />
         )}
       </div>
 
@@ -105,30 +130,35 @@ function LessonPage() {
             На практике вы отработаете тему в живом разговоре с преподавателем.
           </p>
 
-          <div className="mt-5 flex flex-wrap gap-3">
-            {state !== "completed" ? (
-              <button
-                onClick={() => {
-                  completeLesson(student.id, lesson.order);
-                  toast.success("Урок отмечен как завершённый");
-                }}
-                className="inline-flex items-center gap-2 rounded-xl gradient-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-glow transition hover:opacity-95"
-              >
-                <CheckCircle2 className="size-4" /> Отметить завершённым
-              </button>
-            ) : (
+          <div className="mt-5 space-y-3">
+            {state === "completed" ? (
               <span className="inline-flex items-center gap-2 rounded-xl bg-success-soft px-5 py-3 text-sm font-bold text-success">
                 <CheckCircle2 className="size-4" /> Урок завершён
               </span>
+            ) : (
+              <div className="rounded-xl border border-border bg-surface p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-bold text-muted-foreground">
+                    Просмотрено {watchedPct}%
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Завершается автоматически после 90%
+                  </p>
+                </div>
+                <ProgressBar value={watchedPct} className="mt-2" />
+              </div>
             )}
-            {next && !nextLocked && (
-              <button
-                onClick={() => navigate({ to: "/lesson/$order", params: { order: String(next.order) } })}
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-5 py-3 text-sm font-bold transition hover:bg-muted"
-              >
-                Следующий урок <ArrowRight className="size-4" />
-              </button>
-            )}
+
+            <div className="flex flex-wrap gap-3">
+              {next && !nextLocked && (
+                <button
+                  onClick={() => navigate({ to: "/lesson/$order", params: { order: String(next.order) } })}
+                  className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-5 py-3 text-sm font-bold transition hover:bg-muted"
+                >
+                  Следующий урок <ArrowRight className="size-4" />
+                </button>
+              )}
+            </div>
           </div>
 
           {next && nextLocked && (

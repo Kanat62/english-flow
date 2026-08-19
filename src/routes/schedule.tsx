@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { BookOpen, CalendarDays, Video } from "lucide-react";
-import { LESSONS, TODAY } from "@/lib/mock-data";
+import { TODAY } from "@/lib/mock-data";
 import { formatDate, relativeDay, useApp } from "@/lib/store";
 import { StudentShell } from "@/components/StudentShell";
 import { EmptyState, MeetingPill, Pill, SectionTitle } from "@/components/shared";
@@ -8,7 +8,7 @@ import { EmptyState, MeetingPill, Pill, SectionTitle } from "@/components/shared
 export const Route = createFileRoute("/schedule")({
   head: () => ({
     meta: [
-      { title: "Расписание — English Learning Platform" },
+      { title: "Расписание — akcent_academy" },
       {
         name: "description",
         content: "Теория и практика по датам: темы, время занятий и ссылки Google Meet.",
@@ -36,11 +36,11 @@ interface Item {
 }
 
 function SchedulePage() {
-  const { currentStudent, meetingsFor } = useApp();
+  const { currentStudent, meetingsFor, lessons } = useApp();
   const student = currentStudent!;
   const meetings = meetingsFor(student);
 
-  const theory: Item[] = LESSONS.slice(
+  const theory: Item[] = lessons.slice(
     Math.max(0, student.openedUpTo - 4),
     student.openedUpTo,
   ).map((l, i, arr) => {

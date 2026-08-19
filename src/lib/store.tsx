@@ -15,6 +15,8 @@ import {
   STUDENTS,
   TODAY,
   type AccessStatus,
+  type CourseType,
+  type Lesson,
   type LessonState,
   type Meeting,
   type Note,
@@ -32,16 +34,31 @@ interface AppState {
   meetings: Meeting[];
   notes: Note[];
   session: Session | null;
+  lessons: Lesson[];
 }
 
-const STORAGE_KEY = "elp-state-v1";
+const STORAGE_KEY = "elp-state-v2";
 
 const initialState: AppState = {
   students: STUDENTS,
   meetings: MEETINGS,
   notes: NOTES,
   session: null,
+  lessons: LESSONS,
 };
+
+function normalizeStudent(s: Student): Student {
+  return { ...s, completed: s.completed ?? [], watched: s.watched ?? {} };
+}
+
+function normalizeState(raw: Partial<AppState>): AppState {
+  return {
+    ...initialState,
+    ...raw,
+    students: (raw.students ?? initialState.students).map(normalizeStudent),
+    lessons: raw.lessons?.length ? raw.lessons : initialState.lessons,
+  };
+}
 
 interface Ctx extends AppState {
   ready: boolean;
@@ -52,12 +69,18 @@ interface Ctx extends AppState {
   addStudent: (s: Student) => void;
   openNextLesson: (id: string) => void;
   completeLesson: (studentId: string, order: number) => void;
+  updateWatchProgress: (studentId: string, order: number, pct: number) => void;
+  updateLesson: (order: number, patch: Partial<Lesson>) => void;
+  publishLesson: (order: number, type?: CourseType) => void;
+  unpublishLesson: (order: number, type?: CourseType) => void;
   addNote: (studentId: string, content: string) => void;
   deleteNote: (id: string) => void;
   addMeeting: (m: Meeting) => void;
   updateMeeting: (id: string, patch: Partial<Meeting>) => void;
   meetingsFor: (student: Student) => Meeting[];
   reset: () => void;
+  testVideoUrl: string | null;
+  setTestVideoUrl: (url: string | null) => void;
 }
 
 const AppContext = createContext<Ctx | null>(null);
@@ -65,13 +88,14 @@ const AppContext = createContext<Ctx | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(initialState);
   const [ready, setReady] = useState(false);
+  const [testVideoUrl, setTestVideoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setState({ ...initialState, ...JSON.parse(raw) });
+      if (raw) setState(normalizeState(JSON.parse(raw)));
     } catch {
-      /* ignore */
+      /* ignore corrupt/stale saved state and start fresh */
     }
     setReady(true);
   }, []);
@@ -134,8 +158,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setState((p) => ({
           ...p,
           students: p.students.map((st) =>
-            st.id === studentId && !st.completed.includes(order)
-              ? { ...st, completed: [...st.completed, order], lastActivity: TODAY }
+            st.id === studentId && !(st.completed ?? []).includes(order)
+              ? {
+                  ...st,
+                  completed: [...(st.completed ?? []), order],
+                  watched: { ...(st.watched ?? {}), [order]: 100 },
+                  lastActivity: TODAY,
+                }
+              : st,
+          ),
+        })),
+      updateWatchProgress: (studentId, order, pct) =>
+        setState((p) => ({
+          ...p,
+          students: p.students.map((st) =>
+            st.id === studentId && pct > ((st.watched ?? {})[order] ?? 0)
+              ? { ...st, watched: { ...(st.watched ?? {}), [order]: pct }, lastActivity: TODAY }
+              : st,
+          ),
+        })),
+      updateLesson: (order, patch) =>
+        setState((p) => ({
+          ...p,
+          lessons: p.lessons.map((l) => (l.order === order ? { ...l, ...patch } : l)),
+        })),
+      publishLesson: (order, type) =>
+        setState((p) => ({
+          ...p,
+          students: p.students.map((st) =>
+            (!type || st.type === type) && st.openedUpTo < order
+              ? { ...st, openedUpTo: order }
+              : st,
+          ),
+        })),
+      unpublishLesson: (order, type) =>
+        setState((p) => ({
+          ...p,
+          students: p.students.map((st) =>
+            (!type || st.type === type) && st.openedUpTo >= order
+              ? { ...st, openedUpTo: order - 1 }
               : st,
           ),
         })),
@@ -171,8 +232,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem(STORAGE_KEY);
         setState(initialState);
       },
+      testVideoUrl,
+      setTestVideoUrl,
     };
-  }, [state, ready, login, logout, updateStudent]);
+  }, [state, ready, login, logout, updateStudent, testVideoUrl]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
@@ -186,7 +249,7 @@ export function useApp() {
 /* ---------- helpers ---------- */
 
 export function lessonState(student: Student, order: number): LessonState {
-  if (student.completed.includes(order)) return "completed";
+  if ((student.completed ?? []).includes(order)) return "completed";
   if (order <= student.openedUpTo) return "available";
   return "locked";
 }
@@ -202,14 +265,41 @@ export function accessStatus(student: Student): AccessStatus {
 }
 
 export function progressOf(student: Student) {
-  return Math.round((student.completed.length / LESSONS.length) * 100);
+  return Math.round(((student.completed ?? []).length / LESSONS.length) * 100);
 }
 
 export function currentLessonOrder(student: Student) {
   for (let i = 1; i <= student.openedUpTo; i++) {
-    if (!student.completed.includes(i)) return i;
+    if (!(student.completed ?? []).includes(i)) return i;
   }
   return Math.min(student.openedUpTo, LESSONS.length);
+}
+
+export function watchedPctOf(student: Student, order: number) {
+  if ((student.completed ?? []).includes(order)) return 100;
+  return (student.watched ?? {})[order] ?? 0;
+}
+
+export function publishedUpTo(students: Student[], type?: CourseType) {
+  const pool = type ? students.filter((s) => s.type === type) : students;
+  if (pool.length === 0) return 0;
+  return Math.min(...pool.map((s) => s.openedUpTo));
+}
+
+export function lessonStats(students: Student[], order: number, type?: CourseType) {
+  const pool = type ? students.filter((s) => s.type === type) : students;
+  const opened = pool.filter((s) => s.openedUpTo >= order);
+  const completed = opened.filter((s) => (s.completed ?? []).includes(order));
+  const inProgress = opened.filter(
+    (s) => !(s.completed ?? []).includes(order) && ((s.watched ?? {})[order] ?? 0) > 0,
+  );
+  return {
+    total: pool.length,
+    opened: opened.length,
+    completed: completed.length,
+    inProgress: inProgress.length,
+    notStarted: opened.length - completed.length - inProgress.length,
+  };
 }
 
 const MONTHS = [

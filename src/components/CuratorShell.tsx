@@ -96,17 +96,17 @@ export function CuratorShell({ children }: { children: ReactNode }) {
               key={item.to}
               to={item.to}
               className={cn(
-                "flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold",
+                "flex flex-col items-center gap-1 py-2.5 text-xs font-bold",
                 isActive(item.to) ? "text-primary" : "text-muted-foreground",
               )}
             >
               <span
                 className={cn(
-                  "grid size-9 place-items-center rounded-xl",
+                  "grid size-11 place-items-center rounded-xl",
                   isActive(item.to) && "bg-primary-soft",
                 )}
               >
-                <item.icon className="size-[18px]" />
+                <item.icon className="size-6" />
               </span>
               {item.label}
             </Link>

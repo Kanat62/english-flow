@@ -9,7 +9,7 @@ import {
   PlayCircle,
   Video,
 } from "lucide-react";
-import { LESSONS, TODAY } from "@/lib/mock-data";
+import { TODAY } from "@/lib/mock-data";
 import {
   accessStatus,
   currentLessonOrder,
@@ -25,7 +25,7 @@ import { AccessPill, EmptyState, Pill, ProgressBar, SectionTitle } from "@/compo
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
-      { title: "Главная — English Learning Platform" },
+      { title: "Главная — akcent_academy" },
       {
         name: "description",
         content: "Текущий урок, ближайшая практика и прогресс обучения ученика.",
@@ -42,11 +42,11 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function Dashboard() {
-  const { currentStudent, meetingsFor } = useApp();
+  const { currentStudent, meetingsFor, lessons } = useApp();
   const student = currentStudent!;
   const access = accessStatus(student);
   const order = currentLessonOrder(student);
-  const lesson = LESSONS[order - 1] ?? LESSONS[0]!;
+  const lesson = lessons[order - 1] ?? lessons[0]!;
   const progress = progressOf(student);
   const meetings = meetingsFor(student).filter(
     (m) => m.status === "scheduled" && m.date >= TODAY,
@@ -62,8 +62,7 @@ function Dashboard() {
             Привет, {student.firstName} 👋
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {student.type === "GROUP" ? "Групповой курс" : "Индивидуальный курс"} · English ·{" "}
-            {student.level}
+            {student.type === "GROUP" ? "Групповой курс" : "Индивидуальный курс"} · English
           </p>
         </div>
         <div className="text-right">
@@ -158,7 +157,7 @@ function Dashboard() {
               <div>
                 <p className="text-3xl font-extrabold">
                   {student.completed.length}
-                  <span className="text-lg text-muted-foreground">/{LESSONS.length}</span>
+                  <span className="text-lg text-muted-foreground">/{lessons.length}</span>
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">уроков завершено</p>
               </div>
@@ -169,7 +168,7 @@ function Dashboard() {
               {[
                 { label: "Открыто", value: student.openedUpTo },
                 { label: "Завершено", value: student.completed.length },
-                { label: "Закрыто", value: LESSONS.length - student.openedUpTo },
+                { label: "Закрыто", value: lessons.length - student.openedUpTo },
               ].map((s) => (
                 <div key={s.label} className="rounded-xl bg-muted/70 py-2.5">
                   <p className="text-base font-extrabold">{s.value}</p>
@@ -185,7 +184,7 @@ function Dashboard() {
       <section>
         <SectionTitle title="Учебный путь" icon={PlayCircle} />
         <div className="surface-card divide-y divide-border overflow-hidden">
-          {LESSONS.slice(Math.max(0, order - 3), order + 3).map((l) => {
+          {lessons.slice(Math.max(0, order - 3), order + 3).map((l) => {
             const done = student.completed.includes(l.order);
             const locked = l.order > student.openedUpTo;
             const current = l.order === order;

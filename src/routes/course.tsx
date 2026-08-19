@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, Clock3, Lock, PlayCircle, Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import { LESSONS } from "@/lib/mock-data";
 import { currentLessonOrder, lessonState, progressOf, useApp } from "@/lib/store";
 import { StudentShell } from "@/components/StudentShell";
 import { EmptyState, LessonPill, ProgressBar } from "@/components/shared";
@@ -33,7 +32,7 @@ const filters = [
 ] as const;
 
 function CoursePage() {
-  const { currentStudent } = useApp();
+  const { currentStudent, lessons } = useApp();
   const student = currentStudent!;
   const [filter, setFilter] = useState<(typeof filters)[number]["id"]>("all");
   const [query, setQuery] = useState("");
@@ -41,18 +40,18 @@ function CoursePage() {
 
   const list = useMemo(
     () =>
-      LESSONS.filter((l) => {
+      lessons.filter((l) => {
         const state = lessonState(student, l.order);
         if (filter !== "all" && state !== filter) return false;
         if (query && !`${l.title} ${l.description}`.toLowerCase().includes(query.toLowerCase()))
           return false;
         return true;
       }),
-    [student, filter, query],
+    [lessons, student, filter, query],
   );
 
   const grouped = useMemo(() => {
-    const map = new Map<string, typeof LESSONS>();
+    const map = new Map<string, typeof lessons>();
     list.forEach((l) => map.set(l.block, [...(map.get(l.block) ?? []), l]));
     return [...map.entries()];
   }, [list]);
@@ -62,7 +61,7 @@ function CoursePage() {
       <header>
         <h1 className="text-2xl font-extrabold sm:text-3xl">Курс English</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {student.completed.length} из {LESSONS.length} уроков завершено · открыто{" "}
+          {student.completed.length} из {lessons.length} уроков завершено · открыто{" "}
           {student.openedUpTo}
         </p>
         <ProgressBar value={progressOf(student)} className="mt-4" />

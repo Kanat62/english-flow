@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Plus, Search, Users, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { LESSONS, TODAY, type CourseType, type Level, type Student } from "@/lib/mock-data";
+import { LESSONS, TODAY, type CourseType, type Student } from "@/lib/mock-data";
 import {
   accessStatus,
   addMonths,
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/curator/students/")({
       { title: "Ученики — кабинет куратора" },
       {
         name: "description",
-        content: "Список учеников школы: тип обучения, уровень, прогресс и статус доступа.",
+        content: "Список учеников школы: тип обучения, прогресс и статус доступа.",
       },
       { property: "og:title", content: "Управление учениками" },
       { property: "og:description", content: "Поиск, фильтры и создание учеников." },
@@ -109,7 +109,6 @@ function StudentsPage() {
                 <tr className="border-b border-border text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                   <th className="px-4 py-3">Ученик</th>
                   <th className="px-4 py-3">Тип</th>
-                  <th className="px-4 py-3">Уровень</th>
                   <th className="px-4 py-3">Урок</th>
                   <th className="px-4 py-3">Прогресс</th>
                   <th className="px-4 py-3">Доступ</th>
@@ -139,7 +138,6 @@ function StudentsPage() {
                         {s.type === "GROUP" ? "Group" : "Individual"}
                       </Pill>
                     </td>
-                    <td className="px-4 py-3 font-semibold">{s.level}</td>
                     <td className="px-4 py-3 font-semibold">
                       {currentLessonOrder(s)}/{LESSONS.length}
                     </td>
@@ -176,7 +174,7 @@ function StudentsPage() {
                     {s.firstName} {s.lastName}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {s.type === "GROUP" ? "Group" : "Individual"} · {s.level} · урок{" "}
+                    {s.type === "GROUP" ? "Group" : "Individual"} · урок{" "}
                     {currentLessonOrder(s)}
                   </p>
                   <ProgressBar value={progressOf(s)} className="mt-2 h-1.5" />
@@ -204,13 +202,11 @@ function CreateStudentModal({
     firstName: "",
     lastName: "",
     phone: "",
-    email: "",
     login: "",
     password: "",
     type: "GROUP" as CourseType,
     startDate: TODAY,
     endDate: addMonths(TODAY, 3),
-    level: "A1" as Level,
   });
 
   const setType = (type: CourseType) =>
@@ -228,6 +224,7 @@ function CreateStudentModal({
       status: "active",
       openedUpTo: 1,
       completed: [],
+      watched: {},
       lastActivity: TODAY,
       avatarTone: "var(--tone-3)",
     });
@@ -255,7 +252,6 @@ function CreateStudentModal({
           <input className={field} placeholder="Имя" value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} />
           <input className={field} placeholder="Фамилия" value={f.lastName} onChange={(e) => setF({ ...f, lastName: e.target.value })} />
           <input className={field} placeholder="Телефон" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
-          <input className={field} placeholder="Email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
           <input className={field} placeholder="Логин" value={f.login} onChange={(e) => setF({ ...f, login: e.target.value.toLowerCase() })} />
           <input className={field} placeholder="Пароль" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
         </div>
@@ -281,7 +277,7 @@ function CreateStudentModal({
           ))}
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="text-xs font-semibold text-muted-foreground">
             Начало
             <input
@@ -305,18 +301,6 @@ function CreateStudentModal({
               value={f.endDate}
               onChange={(e) => setF({ ...f, endDate: e.target.value })}
             />
-          </label>
-          <label className="text-xs font-semibold text-muted-foreground">
-            Уровень
-            <select
-              className={`${field} mt-1`}
-              value={f.level}
-              onChange={(e) => setF({ ...f, level: e.target.value as Level })}
-            >
-              {(["A1", "A2", "B1", "B2", "C1"] as Level[]).map((l) => (
-                <option key={l}>{l}</option>
-              ))}
-            </select>
           </label>
         </div>
 

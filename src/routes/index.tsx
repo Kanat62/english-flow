@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowRight, Eye, EyeOff, Lock, PlayCircle, Sparkles, User2 } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Lock, PlayCircle, User2 } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/lib/store";
 import { Logo } from "@/components/shared";
@@ -8,13 +8,13 @@ import { Logo } from "@/components/shared";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Вход — English Learning Platform" },
+      { title: "Вход — akcent_academy" },
       {
         name: "description",
         content:
           "Личный кабинет онлайн-школы английского: уроки, видео, расписание практик и прогресс в одном месте.",
       },
-      { property: "og:title", content: "English Learning Platform" },
+      { property: "og:title", content: "akcent_academy" },
       {
         property: "og:description",
         content: "Курс, текущий урок, практика в Google Meet и прогресс — на одном экране.",
@@ -56,10 +56,12 @@ function LoginPage() {
         <div className="absolute -right-24 -top-24 size-80 rounded-full bg-white/10 blur-2xl" />
         <div className="absolute -bottom-32 -left-16 size-96 rounded-full bg-white/10 blur-3xl" />
         <div className="relative flex items-center gap-2.5">
-          <div className="grid size-9 place-items-center rounded-xl bg-white/15">
-            <Sparkles className="size-5" />
-          </div>
-          <span className="text-sm font-extrabold tracking-tight">English Learning Platform</span>
+          <img
+            src="/accent-icon.jpg"
+            alt="akcent_academy"
+            className="size-9 shrink-0 rounded-xl object-cover"
+          />
+          <span className="text-sm font-extrabold tracking-tight">akcent_academy</span>
         </div>
 
         <div className="relative max-w-md">

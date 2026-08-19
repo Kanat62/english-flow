@@ -7,12 +7,11 @@ import {
   Plus,
   StickyNote,
   Trash2,
-  Unlock,
   Video,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { LESSONS, TODAY, type AccessStatus } from "@/lib/mock-data";
+import { TODAY, type AccessStatus } from "@/lib/mock-data";
 import {
   accessStatus,
   currentLessonOrder,
@@ -59,10 +58,10 @@ function StudentCard() {
   const { id } = Route.useParams();
   const {
     students,
+    lessons,
     notes,
     addNote,
     deleteNote,
-    openNextLesson,
     updateStudent,
     meetingsFor,
     addMeeting,
@@ -79,10 +78,9 @@ function StudentCard() {
   const meetings = meetingsFor(s);
   const nextMeeting = meetings.find((m) => m.status === "scheduled" && m.date >= TODAY);
   const studentNotes = notes.filter((n) => n.studentId === s.id);
-  const canOpen = s.openedUpTo < LESSONS.length;
 
   return (
-    <div className="space-y-5 rise-in">
+    <div className="space-y-5 overflow-x-hidden rise-in">
       <Link
         to="/curator/students"
         className="inline-flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground"
@@ -102,7 +100,6 @@ function StudentCard() {
                 <Pill tone={s.type === "GROUP" ? "neutral" : "primary"}>
                   {s.type === "GROUP" ? "Group" : "Individual"}
                 </Pill>
-                <Pill>{s.level}</Pill>
                 <AccessPill status={status} />
               </div>
             </div>
@@ -119,7 +116,7 @@ function StudentCard() {
           {[
             { l: "Текущий урок", v: `${order}` },
             { l: "Прогресс", v: `${progressOf(s)}%` },
-            { l: "Открыто", v: `${s.openedUpTo}/${LESSONS.length}` },
+            { l: "Открыто", v: `${s.openedUpTo}/${lessons.length}` },
             {
               l: "Следующая практика",
               v: nextMeeting ? `${formatDate(nextMeeting.date)} · ${nextMeeting.startTime}` : "—",
@@ -135,16 +132,6 @@ function StudentCard() {
         <ProgressBar value={progressOf(s)} className="mt-4" />
 
         <div className="mt-5 flex flex-wrap gap-2">
-          <button
-            disabled={!canOpen}
-            onClick={() => {
-              openNextLesson(s.id);
-              toast.success(`Открыт урок ${s.openedUpTo + 1}`);
-            }}
-            className="inline-flex items-center gap-2 rounded-xl gradient-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-glow disabled:opacity-50"
-          >
-            <Unlock className="size-4" /> Открыть следующий урок
-          </button>
           <select
             value={s.status}
             onChange={(e) => {
@@ -193,7 +180,6 @@ function StudentCard() {
               {[
                 ["Логин", s.login],
                 ["Телефон", s.phone || "—"],
-                ["Email", s.email || "—"],
                 ["Начало", formatFull(s.startDate)],
                 ["Окончание", formatFull(s.endDate)],
               ].map(([l, v]) => (
@@ -210,7 +196,7 @@ function StudentCard() {
             <div className="space-y-2.5">
               {meetings.length === 0 && <EmptyState icon={Video} title="Практик пока нет" />}
               {meetings.map((m) => (
-                <div key={m.id} className="surface-card flex items-center gap-3 p-4">
+                <div key={m.id} className="surface-card flex flex-wrap items-center gap-3 p-4">
                   <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
                     <Video className="size-4" />
                   </div>
@@ -234,13 +220,13 @@ function StudentCard() {
                   type="date"
                   value={meetForm.date}
                   onChange={(e) => setMeetForm({ ...meetForm, date: e.target.value })}
-                  className="rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-medium outline-none"
+                  className="w-full min-w-0 rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-medium outline-none"
                 />
                 <input
                   type="time"
                   value={meetForm.time}
                   onChange={(e) => setMeetForm({ ...meetForm, time: e.target.value })}
-                  className="rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-medium outline-none"
+                  className="w-full min-w-0 rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-medium outline-none"
                 />
               </div>
               <input
@@ -260,7 +246,7 @@ function StudentCard() {
                     id: `m-${Date.now()}`,
                     lessonOrder: order,
                     studentId: s.type === "GROUP" ? "group" : s.id,
-                    title: `Практика: ${LESSONS[order - 1]?.title ?? ""}`,
+                    title: `Практика: ${lessons[order - 1]?.title ?? ""}`,
                     date: meetForm.date,
                     startTime: meetForm.time,
                     endTime: `${String((Number(h) + 1) % 24).padStart(2, "0")}:${min}`,
@@ -282,7 +268,7 @@ function StudentCard() {
 
       {tab === "Учебный путь" && (
         <div className="surface-card max-h-[70vh] divide-y divide-border overflow-y-auto">
-          {LESSONS.map((l) => {
+          {lessons.map((l) => {
             const st = lessonState(s, l.order);
             return (
               <div key={l.id} className="flex items-center gap-3 px-4 py-3">

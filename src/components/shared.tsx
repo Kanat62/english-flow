@@ -1,17 +1,19 @@
-import { GraduationCap } from "lucide-react";
-import type { ReactNode } from "react";
+import { Play } from "lucide-react";
+import { useRef, useState, type ReactNode, type SyntheticEvent } from "react";
 import { cn } from "@/lib/utils";
 import type { AccessStatus, LessonState, MeetingStatus } from "@/lib/mock-data";
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="grid size-9 shrink-0 place-items-center rounded-xl gradient-primary text-primary-foreground shadow-glow">
-        <GraduationCap className="size-5" />
-      </div>
+      <img
+        src="/accent-icon.jpg"
+        alt="akcent_academy"
+        className="size-9 shrink-0 rounded-xl object-cover shadow-glow"
+      />
       {!compact && (
         <div className="leading-tight">
-          <p className="text-sm font-extrabold tracking-tight">English</p>
+          <p className="text-sm font-extrabold tracking-tight">akcent_academy</p>
           <p className="text-[11px] font-medium text-muted-foreground">Learning Platform</p>
         </div>
       )}
@@ -170,6 +172,58 @@ export function Avatar({
       style={{ background: tone ?? "var(--tone-1)" }}
     >
       {initials}
+    </div>
+  );
+}
+
+export function VideoPlayer({
+  src,
+  className,
+  poster,
+  onError,
+  onTimeUpdate,
+  onEnded,
+}: {
+  src: string;
+  className?: string;
+  poster?: string;
+  onError?: () => void;
+  onTimeUpdate?: (e: SyntheticEvent<HTMLVideoElement>) => void;
+  onEnded?: (e: SyntheticEvent<HTMLVideoElement>) => void;
+}) {
+  const [playing, setPlaying] = useState(false);
+  const ref = useRef<HTMLVideoElement>(null);
+
+  return (
+    <div className={cn("relative overflow-hidden bg-black", className)}>
+      <video
+        key={src}
+        ref={ref}
+        controls
+        playsInline
+        preload="metadata"
+        poster={poster}
+        onError={onError}
+        onTimeUpdate={onTimeUpdate}
+        onEnded={onEnded}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        className="absolute inset-0 size-full"
+      >
+        <source src={src} type="video/mp4" />
+      </video>
+      {!playing && (
+        <button
+          type="button"
+          onClick={() => ref.current?.play()}
+          aria-label="Смотреть видео"
+          className="absolute inset-0 grid place-items-center bg-black/10 transition hover:bg-black/25"
+        >
+          <span className="grid size-16 place-items-center rounded-full gradient-primary text-primary-foreground shadow-glow transition hover:scale-105">
+            <Play className="size-7 translate-x-0.5 fill-current" />
+          </span>
+        </button>
+      )}
     </div>
   );
 }

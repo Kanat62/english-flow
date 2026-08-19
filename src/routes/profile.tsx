@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CalendarDays, GraduationCap, Mail, Phone, ShieldCheck, User2 } from "lucide-react";
+import { CalendarDays, GraduationCap, Phone, User2 } from "lucide-react";
 import { LESSONS } from "@/lib/mock-data";
 import {
   accessStatus,
@@ -15,13 +15,13 @@ import { AccessPill, Avatar, ProgressBar, SectionTitle } from "@/components/shar
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "Профиль ученика — English Learning Platform" },
+      { title: "Профиль ученика — akcent_academy" },
       {
         name: "description",
-        content: "Данные ученика: курс, уровень, сроки доступа и текущий прогресс обучения.",
+        content: "Данные ученика: курс, сроки доступа и текущий прогресс обучения.",
       },
       { property: "og:title", content: "Профиль ученика" },
-      { property: "og:description", content: "Курс, уровень и срок доступа к обучению." },
+      { property: "og:description", content: "Курс и срок доступа к обучению." },
     ],
   }),
   component: () => (
@@ -41,11 +41,9 @@ function ProfilePage() {
   const rows = [
     { icon: GraduationCap, label: "Курс", value: "English" },
     { icon: User2, label: "Тип обучения", value: s.type === "GROUP" ? "Групповой" : "Индивидуальный" },
-    { icon: ShieldCheck, label: "Уровень", value: s.level },
     { icon: CalendarDays, label: "Начало обучения", value: formatFull(s.startDate) },
     { icon: CalendarDays, label: "Окончание доступа", value: formatFull(s.endDate) },
     { icon: Phone, label: "Телефон", value: s.phone },
-    { icon: Mail, label: "Email", value: s.email },
     { icon: User2, label: "Логин", value: s.login },
   ];
 
@@ -61,7 +59,7 @@ function ProfilePage() {
             {s.firstName} {s.lastName}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {s.type === "GROUP" ? "Group" : "Individual"} · {s.level}
+            {s.type === "GROUP" ? "Group" : "Individual"}
           </p>
           <div className="mt-3 flex items-center gap-2">
             <AccessPill status={access} />
