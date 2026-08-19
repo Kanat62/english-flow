@@ -8,27 +8,18 @@ import {
   type ReactNode,
 } from "react";
 import {
-  COMPLETE_THRESHOLD,
-  COURSES,
   CURATOR,
   LESSONS,
   MEETINGS,
   NOTES,
-  PROGRESS,
   STUDENTS,
   TODAY,
-  VIDEOS,
   type AccessStatus,
-  type Course,
-  type Lesson,
   type LessonState,
-  type LessonStatus,
   type Meeting,
   type Note,
-  type Progress,
   type Role,
   type Student,
-  type Video,
 } from "./mock-data";
 
 interface Session {
@@ -37,64 +28,30 @@ interface Session {
 }
 
 interface AppState {
-  courses: Course[];
-  lessons: Lesson[];
-  videos: Video[];
   students: Student[];
   meetings: Meeting[];
   notes: Note[];
-  progress: Record<string, Progress>;
-  globalVideoId: string | null;
   session: Session | null;
 }
 
-const STORAGE_KEY = "akcent-state-v2";
+const STORAGE_KEY = "elp-state-v1";
 
 const initialState: AppState = {
-  courses: COURSES,
-  lessons: LESSONS,
-  videos: VIDEOS,
   students: STUDENTS,
   meetings: MEETINGS,
   notes: NOTES,
-  progress: PROGRESS,
-  globalVideoId: "v-demo",
   session: null,
 };
-
-export interface StudentStats {
-  completed: number;
-  total: number;
-  percent: number;
-  current: Lesson | null;
-}
 
 interface Ctx extends AppState {
   ready: boolean;
   login: (login: string, password: string) => Role | null;
   logout: () => void;
   currentStudent: Student | null;
-  currentCourse: Course | null;
-  courseById: (id: string) => Course | undefined;
-  lessonsOf: (courseId: string) => Lesson[];
-  publishedOf: (courseId: string) => Lesson[];
-  lessonByOrder: (courseId: string, order: number) => Lesson | undefined;
-  videoFor: (lesson: Lesson | null | undefined) => Video | null;
-  progressFor: (studentId: string, lessonId: string) => Progress;
-  setWatched: (studentId: string, lessonId: string, percent: number) => void;
-  lessonStateFor: (student: Student, lesson: Lesson) => LessonState;
-  statsFor: (student: Student) => StudentStats;
-  updateLesson: (id: string, patch: Partial<Lesson>) => void;
-  setLessonStatus: (id: string, status: LessonStatus) => void;
-  publishUpTo: (courseId: string, order: number) => void;
-  addVideo: (v: Video) => void;
-  deleteVideo: (id: string) => void;
-  attachVideo: (lessonId: string, videoId: string | null, applyToAll: boolean) => void;
-  setGlobalVideo: (id: string | null) => void;
-  addCourse: (c: Course) => void;
-  updateCourse: (id: string, patch: Partial<Course>) => void;
   updateStudent: (id: string, patch: Partial<Student>) => void;
   addStudent: (s: Student) => void;
+  openNextLesson: (id: string) => void;
+  completeLesson: (studentId: string, order: number) => void;
   addNote: (studentId: string, content: string) => void;
   deleteNote: (id: string) => void;
   addMeeting: (m: Meeting) => void;
@@ -104,8 +61,6 @@ interface Ctx extends AppState {
 }
 
 const AppContext = createContext<Ctx | null>(null);
-
-const emptyProgress: Progress = { percent: 0, status: "not_started", updatedAt: TODAY };
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(initialState);
@@ -123,16 +78,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!ready) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {
-      /* quota */
-    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state, ready]);
 
   const login = useCallback(
-    (loginValue: string, password: string): Role | null => {
-      const l = loginValue.trim().toLowerCase();
+    (login: string, password: string): Role | null => {
+      const l = login.trim().toLowerCase();
       if (l === CURATOR.login && password === CURATOR.password) {
         setState((s) => ({ ...s, session: { role: "curator", id: CURATOR.id } }));
         return "curator";
@@ -149,47 +100,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => setState((s) => ({ ...s, session: null })), []);
 
+  const updateStudent = useCallback((id: string, patch: Partial<Student>) => {
+    setState((s) => ({
+      ...s,
+      students: s.students.map((st) => (st.id === id ? { ...st, ...patch } : st)),
+    }));
+  }, []);
+
   const value: Ctx = useMemo(() => {
     const currentStudent =
       state.session?.role === "student"
         ? (state.students.find((s) => s.id === state.session!.id) ?? null)
         : null;
-
-    const courseById = (id: string) => state.courses.find((c) => c.id === id);
-
-    const lessonsOf = (courseId: string) =>
-      state.lessons
-        .filter((l) => l.courseId === courseId && l.status !== "archived")
-        .sort((a, b) => a.order - b.order);
-
-    const publishedOf = (courseId: string) =>
-      lessonsOf(courseId).filter((l) => l.status === "published");
-
-    const progressFor = (studentId: string, lessonId: string) =>
-      state.progress[`${studentId}:${lessonId}`] ?? emptyProgress;
-
-    const lessonStateFor = (student: Student, lesson: Lesson): LessonState => {
-      if (lesson.status !== "published") return "locked";
-      return progressFor(student.id, lesson.id).status === "completed" ? "completed" : "available";
-    };
-
-    const statsFor = (student: Student): StudentStats => {
-      const list = publishedOf(student.courseId);
-      const total = lessonsOf(student.courseId).length;
-      const completed = list.filter(
-        (l) => progressFor(student.id, l.id).status === "completed",
-      ).length;
-      const current =
-        list.find((l) => progressFor(student.id, l.id).status !== "completed") ??
-        list[list.length - 1] ??
-        null;
-      return {
-        completed,
-        total,
-        percent: total ? Math.round((completed / total) * 100) : 0,
-        current,
-      };
-    };
 
     return {
       ...state,
@@ -197,109 +119,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       currentStudent,
-      currentCourse: currentStudent ? (courseById(currentStudent.courseId) ?? null) : null,
-      courseById,
-      lessonsOf,
-      publishedOf,
-      lessonByOrder: (courseId, order) =>
-        state.lessons.find((l) => l.courseId === courseId && l.order === order),
-      videoFor: (lesson) => {
-        if (state.globalVideoId) {
-          const v = state.videos.find((x) => x.id === state.globalVideoId);
-          if (v) return v;
-        }
-        if (!lesson?.videoId) return null;
-        return state.videos.find((v) => v.id === lesson.videoId) ?? null;
-      },
-      progressFor,
-      setWatched: (studentId, lessonId, percent) =>
-        setState((p) => {
-          const key = `${studentId}:${lessonId}`;
-          const prev = p.progress[key] ?? emptyProgress;
-          const next = Math.max(prev.percent, Math.min(100, Math.round(percent)));
-          if (next === prev.percent && prev.status !== "not_started") return p;
-          return {
-            ...p,
-            progress: {
-              ...p.progress,
-              [key]: {
-                percent: next,
-                status: next >= COMPLETE_THRESHOLD ? "completed" : "in_progress",
-                updatedAt: TODAY,
-              },
-            },
-            students: p.students.map((s) =>
-              s.id === studentId ? { ...s, lastActivity: TODAY } : s,
-            ),
-          };
-        }),
-      lessonStateFor,
-      statsFor,
-      updateLesson: (id, patch) =>
-        setState((p) => ({
-          ...p,
-          lessons: p.lessons.map((l) => (l.id === id ? { ...l, ...patch } : l)),
-        })),
-      setLessonStatus: (id, status) =>
-        setState((p) => ({
-          ...p,
-          lessons: p.lessons.map((l) =>
-            l.id === id
-              ? {
-                  ...l,
-                  status,
-                  publishedAt: status === "published" ? (l.publishedAt ?? TODAY) : null,
-                }
-              : l,
-          ),
-        })),
-      publishUpTo: (courseId, order) =>
-        setState((p) => ({
-          ...p,
-          lessons: p.lessons.map((l) =>
-            l.courseId === courseId && l.status !== "archived"
-              ? l.order <= order
-                ? { ...l, status: "published", publishedAt: l.publishedAt ?? TODAY }
-                : { ...l, status: "draft", publishedAt: null }
-              : l,
-          ),
-        })),
-      addVideo: (v) => setState((p) => ({ ...p, videos: [v, ...p.videos] })),
-      deleteVideo: (id) =>
-        setState((p) => ({
-          ...p,
-          videos: p.videos.filter((v) => v.id !== id),
-          globalVideoId: p.globalVideoId === id ? null : p.globalVideoId,
-          lessons: p.lessons.map((l) => (l.videoId === id ? { ...l, videoId: null } : l)),
-        })),
-      attachVideo: (lessonId, videoId, applyToAll) =>
-        setState((p) => ({
-          ...p,
-          lessons: p.lessons.map((l) => (l.id === lessonId ? { ...l, videoId } : l)),
-          globalVideoId: applyToAll ? videoId : p.globalVideoId,
-        })),
-      setGlobalVideo: (id) => setState((p) => ({ ...p, globalVideoId: id })),
-      addCourse: (c) => setState((p) => ({ ...p, courses: [...p.courses, c] })),
-      updateCourse: (id, patch) =>
-        setState((p) => ({
-          ...p,
-          courses: p.courses.map((c) => (c.id === id ? { ...c, ...patch } : c)),
-        })),
-      updateStudent: (id, patch) =>
-        setState((p) => ({
-          ...p,
-          students: p.students.map((st) => (st.id === id ? { ...st, ...patch } : st)),
-        })),
+      updateStudent,
       addStudent: (s) => setState((p) => ({ ...p, students: [s, ...p.students] })),
+      openNextLesson: (id) =>
+        setState((p) => ({
+          ...p,
+          students: p.students.map((st) =>
+            st.id === id
+              ? { ...st, openedUpTo: Math.min(LESSONS.length, st.openedUpTo + 1) }
+              : st,
+          ),
+        })),
+      completeLesson: (studentId, order) =>
+        setState((p) => ({
+          ...p,
+          students: p.students.map((st) =>
+            st.id === studentId && !st.completed.includes(order)
+              ? { ...st, completed: [...st.completed, order], lastActivity: TODAY }
+              : st,
+          ),
+        })),
       addNote: (studentId, content) =>
         setState((p) => ({
           ...p,
           notes: [
-            { id: `n-${Date.now()}`, studentId, author: CURATOR.name, content, createdAt: TODAY },
+            {
+              id: `n-${Date.now()}`,
+              studentId,
+              author: CURATOR.name,
+              content,
+              createdAt: TODAY,
+            },
             ...p.notes,
           ],
         })),
-      deleteNote: (id) => setState((p) => ({ ...p, notes: p.notes.filter((n) => n.id !== id) })),
+      deleteNote: (id) =>
+        setState((p) => ({ ...p, notes: p.notes.filter((n) => n.id !== id) })),
       addMeeting: (m) => setState((p) => ({ ...p, meetings: [...p.meetings, m] })),
       updateMeeting: (id, patch) =>
         setState((p) => ({
@@ -308,10 +163,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         })),
       meetingsFor: (student) =>
         state.meetings
-          .filter(
-            (m) =>
-              m.courseId === student.courseId &&
-              (student.type === "GROUP" ? m.studentId === "group" : m.studentId === student.id),
+          .filter((m) =>
+            student.type === "GROUP" ? m.studentId === "group" : m.studentId === student.id,
           )
           .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime)),
       reset: () => {
@@ -319,7 +172,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setState(initialState);
       },
     };
-  }, [state, ready, login, logout]);
+  }, [state, ready, login, logout, updateStudent]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
@@ -332,6 +185,12 @@ export function useApp() {
 
 /* ---------- helpers ---------- */
 
+export function lessonState(student: Student, order: number): LessonState {
+  if (student.completed.includes(order)) return "completed";
+  if (order <= student.openedUpTo) return "available";
+  return "locked";
+}
+
 export function daysLeft(endDate: string, from = TODAY) {
   const diff = new Date(endDate).getTime() - new Date(from).getTime();
   return Math.round(diff / 86400000);
@@ -340,6 +199,17 @@ export function daysLeft(endDate: string, from = TODAY) {
 export function accessStatus(student: Student): AccessStatus {
   if (student.status === "disabled") return "disabled";
   return daysLeft(student.endDate) < 0 ? "expired" : student.status;
+}
+
+export function progressOf(student: Student) {
+  return Math.round((student.completed.length / LESSONS.length) * 100);
+}
+
+export function currentLessonOrder(student: Student) {
+  for (let i = 1; i <= student.openedUpTo; i++) {
+    if (!student.completed.includes(i)) return i;
+  }
+  return Math.min(student.openedUpTo, LESSONS.length);
 }
 
 const MONTHS = [
