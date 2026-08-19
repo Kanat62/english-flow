@@ -47,7 +47,7 @@ function LoginPage() {
   };
 
   const fill = (l: string) => {
-    setForm({ login: l, password: "12345" });
+    setForm({ login: l, password: "test123" });
   };
 
   return (
@@ -150,15 +150,15 @@ function LoginPage() {
                 onClick={() => fill("kanat")}
                 className="flex w-full items-center justify-between rounded-xl bg-muted px-3 py-2.5 text-left text-xs font-semibold transition hover:bg-primary-soft"
               >
-                <span>Ученик · kanat</span>
-                <span className="text-muted-foreground">12345</span>
+                <span>Ученик: kanat</span>
+                <span className="text-muted-foreground">Пароль: test123</span>
               </button>
               <button
                 onClick={() => fill("curator")}
                 className="flex w-full items-center justify-between rounded-xl bg-muted px-3 py-2.5 text-left text-xs font-semibold transition hover:bg-primary-soft"
               >
-                <span>Куратор · curator</span>
-                <span className="text-muted-foreground">12345</span>
+                <span>Куратор: curator</span>
+                <span className="text-muted-foreground">Пароль: test123</span>
               </button>
             </div>
           </div>

@@ -137,7 +137,7 @@ export const STUDENTS: Student[] = [
   {
     id: "s1",
     login: "kanat",
-    password: "12345",
+    password: "test123",
     firstName: "Канат",
     lastName: "Уметов",
     phone: "+996 700 112 233",
@@ -154,7 +154,7 @@ export const STUDENTS: Student[] = [
   {
     id: "s2",
     login: "alina",
-    password: "12345",
+    password: "test123",
     firstName: "Алина",
     lastName: "Ким",
     phone: "+996 555 908 771",
@@ -171,7 +171,7 @@ export const STUDENTS: Student[] = [
   {
     id: "s3",
     login: "aibek",
-    password: "12345",
+    password: "test123",
     firstName: "Айбек",
     lastName: "Сатыбалдиев",
     phone: "+996 707 445 010",
@@ -188,7 +188,7 @@ export const STUDENTS: Student[] = [
   {
     id: "s4",
     login: "nurai",
-    password: "12345",
+    password: "test123",
     firstName: "Нурай",
     lastName: "Асанова",
     phone: "+996 559 220 118",
@@ -205,7 +205,7 @@ export const STUDENTS: Student[] = [
   {
     id: "s5",
     login: "elmira",
-    password: "12345",
+    password: "test123",
     firstName: "Эльмира",
     lastName: "Джолдошева",
     phone: "+996 700 330 447",
@@ -224,7 +224,7 @@ export const STUDENTS: Student[] = [
 export const CURATOR = {
   id: "c1",
   login: "curator",
-  password: "12345",
+  password: "test123",
   name: "Мээрим Абдыраева",
   role: "curator" as Role,
 };

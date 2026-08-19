@@ -37,7 +37,7 @@ interface AppState {
   lessons: Lesson[];
 }
 
-const STORAGE_KEY = "elp-state-v2";
+const STORAGE_KEY = "elp-state-v3";
 
 const initialState: AppState = {
   students: STUDENTS,
