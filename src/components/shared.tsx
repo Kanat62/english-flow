@@ -6,13 +6,13 @@ export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
       <img
-        src="/accent-icon.jpg"
-        alt="akcent_academy"
+        src="/icon.jpg"
+        alt="sozmor"
         className="size-9 shrink-0 rounded-xl object-cover shadow-glow"
       />
       {!compact && (
         <div className="leading-tight">
-          <p className="text-sm font-extrabold tracking-tight">akcent_academy</p>
+          <p className="text-sm font-extrabold tracking-tight">Sozmor</p>
           <p className="text-[11px] font-medium text-muted-foreground">Learning Platform</p>
         </div>
       )}

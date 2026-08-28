@@ -8,13 +8,13 @@ import { Logo } from "@/components/shared";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Вход — akcent_academy" },
+      { title: "Вход — Sozmor" },
       {
         name: "description",
         content:
           "Личный кабинет онлайн-школы английского: уроки, видео, расписание практик и прогресс в одном месте.",
       },
-      { property: "og:title", content: "akcent_academy" },
+      { property: "og:title", content: "Sozmor" },
       {
         property: "og:description",
         content: "Курс, текущий урок, практика в Google Meet и прогресс — на одном экране.",
@@ -57,11 +57,11 @@ function LoginPage() {
         <div className="absolute -bottom-32 -left-16 size-96 rounded-full bg-white/10 blur-3xl" />
         <div className="relative flex items-center gap-2.5">
           <img
-            src="/accent-icon.jpg"
-            alt="akcent_academy"
+            src="/icon.jpg"
+            alt="Sozmor"
             className="size-9 shrink-0 rounded-xl object-cover"
           />
-          <span className="text-sm font-extrabold tracking-tight">akcent_academy</span>
+          <span className="text-sm font-extrabold tracking-tight">Sozmor</span>
         </div>
 
         <div className="relative max-w-md">
