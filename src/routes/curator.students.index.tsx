@@ -49,7 +49,10 @@ function StudentsPage() {
         if (filter === "Individual" && s.type !== "INDIVIDUAL") return false;
         if (filter === "Active" && status !== "active") return false;
         if (filter === "Expired" && status !== "expired") return false;
-        if (query && !`${s.firstName} ${s.lastName} ${s.login}`.toLowerCase().includes(query.toLowerCase()))
+        if (
+          query &&
+          !`${s.firstName} ${s.lastName} ${s.login}`.toLowerCase().includes(query.toLowerCase())
+        )
           return false;
         return true;
       }),
@@ -99,7 +102,11 @@ function StudentsPage() {
       </div>
 
       {list.length === 0 ? (
-        <EmptyState icon={Users} title="Учеников не найдено" description="Измените фильтр или поиск." />
+        <EmptyState
+          icon={Users}
+          title="Учеников не найдено"
+          description="Измените фильтр или поиск."
+        />
       ) : (
         <>
           {/* Desktop table */}
@@ -124,7 +131,11 @@ function StudentsPage() {
                         params={{ id: s.id }}
                         className="flex items-center gap-3"
                       >
-                        <Avatar name={`${s.firstName} ${s.lastName}`} tone={s.avatarTone} size="sm" />
+                        <Avatar
+                          name={`${s.firstName} ${s.lastName}`}
+                          tone={s.avatarTone}
+                          size="sm"
+                        />
                         <span>
                           <span className="block font-bold">
                             {s.firstName} {s.lastName}
@@ -174,8 +185,7 @@ function StudentsPage() {
                     {s.firstName} {s.lastName}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {s.type === "GROUP" ? "Group" : "Individual"} · урок{" "}
-                    {currentLessonOrder(s)}
+                    {s.type === "GROUP" ? "Group" : "Individual"} · урок {currentLessonOrder(s)}
                   </p>
                   <ProgressBar value={progressOf(s)} className="mt-2 h-1.5" />
                 </div>
@@ -225,6 +235,7 @@ function CreateStudentModal({
       openedUpTo: 1,
       completed: [],
       watched: {},
+      knownWords: [],
       lastActivity: TODAY,
       avatarTone: "var(--tone-3)",
     });
@@ -249,11 +260,36 @@ function CreateStudentModal({
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <input className={field} placeholder="Имя" value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} />
-          <input className={field} placeholder="Фамилия" value={f.lastName} onChange={(e) => setF({ ...f, lastName: e.target.value })} />
-          <input className={field} placeholder="Телефон" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
-          <input className={field} placeholder="Логин" value={f.login} onChange={(e) => setF({ ...f, login: e.target.value.toLowerCase() })} />
-          <input className={field} placeholder="Пароль" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
+          <input
+            className={field}
+            placeholder="Имя"
+            value={f.firstName}
+            onChange={(e) => setF({ ...f, firstName: e.target.value })}
+          />
+          <input
+            className={field}
+            placeholder="Фамилия"
+            value={f.lastName}
+            onChange={(e) => setF({ ...f, lastName: e.target.value })}
+          />
+          <input
+            className={field}
+            placeholder="Телефон"
+            value={f.phone}
+            onChange={(e) => setF({ ...f, phone: e.target.value })}
+          />
+          <input
+            className={field}
+            placeholder="Логин"
+            value={f.login}
+            onChange={(e) => setF({ ...f, login: e.target.value.toLowerCase() })}
+          />
+          <input
+            className={field}
+            placeholder="Пароль"
+            value={f.password}
+            onChange={(e) => setF({ ...f, password: e.target.value })}
+          />
         </div>
 
         <p className="mt-5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">

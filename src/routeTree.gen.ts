@@ -14,6 +14,7 @@ import { Route as CourseRouteImport } from './routes/course'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ScheduleRouteImport } from './routes/schedule'
+import { Route as VocabularyRouteImport } from './routes/vocabulary'
 import { Route as CuratorIndexRouteImport } from './routes/curator.index'
 import { Route as CuratorScheduleRouteImport } from './routes/curator.schedule'
 import { Route as LessonOrderRouteImport } from './routes/lesson.$order'
@@ -46,6 +47,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const ScheduleRoute = ScheduleRouteImport.update({
   id: '/schedule',
   path: '/schedule',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VocabularyRoute = VocabularyRouteImport.update({
+  id: '/vocabulary',
+  path: '/vocabulary',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CuratorIndexRoute = CuratorIndexRouteImport.update({
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/profile': typeof ProfileRoute
   '/schedule': typeof ScheduleRoute
+  '/vocabulary': typeof VocabularyRoute
   '/curator/schedule': typeof CuratorScheduleRoute
   '/lesson/$order': typeof LessonOrderRoute
   '/curator/': typeof CuratorIndexRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/profile': typeof ProfileRoute
   '/schedule': typeof ScheduleRoute
+  '/vocabulary': typeof VocabularyRoute
   '/curator/schedule': typeof CuratorScheduleRoute
   '/lesson/$order': typeof LessonOrderRoute
   '/curator': typeof CuratorIndexRoute
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/profile': typeof ProfileRoute
   '/schedule': typeof ScheduleRoute
+  '/vocabulary': typeof VocabularyRoute
   '/curator/schedule': typeof CuratorScheduleRoute
   '/lesson/$order': typeof LessonOrderRoute
   '/curator/': typeof CuratorIndexRoute
@@ -143,6 +152,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/profile'
     | '/schedule'
+    | '/vocabulary'
     | '/curator/schedule'
     | '/lesson/$order'
     | '/curator/'
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/profile'
     | '/schedule'
+    | '/vocabulary'
     | '/curator/schedule'
     | '/lesson/$order'
     | '/curator'
@@ -173,6 +184,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/profile'
     | '/schedule'
+    | '/vocabulary'
     | '/curator/schedule'
     | '/lesson/$order'
     | '/curator/'
@@ -189,6 +201,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   ProfileRoute: typeof ProfileRoute
   ScheduleRoute: typeof ScheduleRoute
+  VocabularyRoute: typeof VocabularyRoute
   CuratorScheduleRoute: typeof CuratorScheduleRoute
   LessonOrderRoute: typeof LessonOrderRoute
   CuratorIndexRoute: typeof CuratorIndexRoute
@@ -234,6 +247,13 @@ declare module '@tanstack/react-router' {
       path: '/schedule'
       fullPath: '/schedule'
       preLoaderRoute: typeof ScheduleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vocabulary': {
+      id: '/vocabulary'
+      path: '/vocabulary'
+      fullPath: '/vocabulary'
+      preLoaderRoute: typeof VocabularyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/curator/': {
@@ -301,6 +321,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   ProfileRoute: ProfileRoute,
   ScheduleRoute: ScheduleRoute,
+  VocabularyRoute: VocabularyRoute,
   CuratorScheduleRoute: CuratorScheduleRoute,
   LessonOrderRoute: LessonOrderRoute,
   CuratorIndexRoute: CuratorIndexRoute,

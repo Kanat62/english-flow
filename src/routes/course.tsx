@@ -1,10 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CheckCircle2, Clock3, Lock, PlayCircle, Search, FileText } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock3, Lock, PlayCircle, Search, FileText } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
+  courseLevels,
   currentLessonOrder,
   lessonState,
+  levelStatus,
   progressOf,
+  stageForBlock,
+  stageForLesson,
   testAvailability,
   testForLesson,
   useApp,
@@ -64,14 +68,47 @@ function CoursePage() {
     return [...map.entries()];
   }, [list]);
 
+  const stage = stageForLesson(lessons, Math.max(1, student.openedUpTo));
+
   return (
     <div className="space-y-6 rise-in">
       <header>
         <h1 className="text-2xl font-extrabold sm:text-3xl">Курс English</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {student.completed.length} из {lessons.length} уроков завершено · открыто{" "}
-          {student.openedUpTo}
+          {student.completed.length} из {lessons.length} уроков завершено · {progressOf(student)}%
         </p>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {courseLevels().map((level, i, arr) => {
+            const status = levelStatus(student, lessons, level);
+            return (
+              <div key={level} className="flex items-center gap-2">
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-extrabold ${
+                    status === "completed"
+                      ? "bg-success-soft text-success"
+                      : status === "current"
+                        ? "gradient-primary text-primary-foreground shadow-glow"
+                        : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {level}
+                  {status === "completed" && <CheckCircle2 className="size-3.5" />}
+                </span>
+                {i < arr.length - 1 && (
+                  <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {stage && (
+          <p className="mt-2.5 text-xs text-muted-foreground">
+            Текущий этап: <span className="font-bold text-foreground">{stage.level}</span> ·{" "}
+            {stage.title}
+          </p>
+        )}
+
         <ProgressBar value={progressOf(student)} className="mt-4" />
       </header>
 
@@ -110,62 +147,65 @@ function CoursePage() {
         />
       )}
 
-      {grouped.map(([block, lessons]) => (
-        <section key={block}>
-          <h2 className="mb-2 text-[13px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-            {block}
-          </h2>
-          <div className="surface-card divide-y divide-border overflow-hidden">
-            {lessons.map((l) => {
-              const state = lessonState(student, l.order);
-              const locked = state === "locked";
-              const test = testForLesson(tests, l.order);
-              return (
-                <div key={l.id}>
-                  <Link
-                    to="/lesson/$order"
-                    params={{ order: String(l.order) }}
-                    disabled={locked}
-                    className={`flex items-center gap-3 px-4 py-3.5 transition ${
-                      locked ? "cursor-not-allowed opacity-55" : "hover:bg-muted/60"
-                    } ${l.order === current ? "bg-primary-soft/40" : ""}`}
-                  >
-                    <span
-                      className={`grid size-9 shrink-0 place-items-center rounded-xl text-xs font-bold ${
-                        state === "completed"
-                          ? "bg-success-soft text-success"
-                          : locked
-                            ? "bg-muted text-muted-foreground"
-                            : "gradient-primary text-primary-foreground"
-                      }`}
+      {grouped.map(([block, lessons]) => {
+        const blockStage = stageForBlock(block);
+        return (
+          <section key={block}>
+            <h2 className="mb-2 text-[13px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+              {blockStage ? `${blockStage.level} · ${block}` : block}
+            </h2>
+            <div className="surface-card divide-y divide-border overflow-hidden">
+              {lessons.map((l) => {
+                const state = lessonState(student, l.order);
+                const locked = state === "locked";
+                const test = testForLesson(tests, l.order);
+                return (
+                  <div key={l.id}>
+                    <Link
+                      to="/lesson/$order"
+                      params={{ order: String(l.order) }}
+                      disabled={locked}
+                      className={`flex items-center gap-3 px-4 py-3.5 transition ${
+                        locked ? "cursor-not-allowed opacity-55" : "hover:bg-muted/60"
+                      } ${l.order === current ? "bg-primary-soft/40" : ""}`}
                     >
-                      {state === "completed" ? (
-                        <CheckCircle2 className="size-4" />
-                      ) : locked ? (
-                        <Lock className="size-3.5" />
-                      ) : (
-                        <PlayCircle className="size-4" />
-                      )}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-bold">
-                        {l.order}. {l.title}
+                      <span
+                        className={`grid size-9 shrink-0 place-items-center rounded-xl text-xs font-bold ${
+                          state === "completed"
+                            ? "bg-success-soft text-success"
+                            : locked
+                              ? "bg-muted text-muted-foreground"
+                              : "gradient-primary text-primary-foreground"
+                        }`}
+                      >
+                        {state === "completed" ? (
+                          <CheckCircle2 className="size-4" />
+                        ) : locked ? (
+                          <Lock className="size-3.5" />
+                        ) : (
+                          <PlayCircle className="size-4" />
+                        )}
                       </span>
-                      <span className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
-                        <Clock3 className="size-3" /> {l.duration} · {l.description}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold">
+                          {l.order}. {l.title}
+                        </span>
+                        <span className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+                          <Clock3 className="size-3" /> {l.duration}
+                        </span>
                       </span>
-                    </span>
-                    <span className="hidden sm:block">
-                      <LessonPill state={state} />
-                    </span>
-                  </Link>
-                  <TestRow order={l.order} test={test} student={student} attempts={attempts} />
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      ))}
+                      <span className="hidden sm:block">
+                        <LessonPill state={state} />
+                      </span>
+                    </Link>
+                    <TestRow order={l.order} test={test} student={student} attempts={attempts} />
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -238,9 +278,7 @@ function TestRow({
         <span className="block truncate text-xs font-bold">
           {test?.title ?? `Тест к уроку ${order}`}
         </span>
-        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-          {subtitle}
-        </span>
+        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{subtitle}</span>
       </span>
       <span className="hidden sm:block">{pill}</span>
     </>

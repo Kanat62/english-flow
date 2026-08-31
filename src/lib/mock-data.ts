@@ -95,6 +95,7 @@ export interface Student {
   openedUpTo: number; // максимальный открытый урок (order)
   completed: number[]; // завершённые уроки
   watched: Record<number, number>; // order -> % просмотра видео (0-100)
+  knownWords: string[]; // id слов, отмеченных «Знаю»
   lastActivity: string;
   avatarTone: string;
 }
@@ -166,6 +167,75 @@ export const LESSONS: Lesson[] = titles.map(([title, description, block], i) => 
   duration: `${10 + ((i * 7) % 12)}:${String((i * 13) % 60).padStart(2, "0")}`,
 }));
 
+export type CefrLevel = "A1" | "A2" | "B1" | "B2";
+
+export interface CourseStage {
+  block: string; // соответствует Lesson.block
+  level: CefrLevel;
+  month: number;
+  title: string;
+}
+
+// Текущий блок программы отображается как этап роадмапа — это шаблон
+// программы месяц-к-уровню, а не автоматическое определение уровня.
+export const COURSE_STAGES: CourseStage[] = [
+  { block: "Foundation", level: "A1", month: 1, title: "Foundation" },
+  { block: "Grammar Core", level: "A2", month: 2, title: "Everyday Grammar" },
+  { block: "Past & Future", level: "B1", month: 3, title: "Past & Future" },
+  { block: "Vocabulary", level: "B1", month: 4, title: "Vocabulary & Life" },
+  { block: "Advanced Grammar", level: "B2", month: 5, title: "Advanced Grammar" },
+  { block: "Speaking", level: "B2", month: 6, title: "Speaking & Fluency" },
+];
+
+export interface VocabWord {
+  id: string;
+  lessonOrder: number;
+  term: string;
+  translation: string;
+  example: string;
+}
+
+export const VOCAB_WORDS: VocabWord[] = [
+  {
+    id: "v1",
+    lessonOrder: 1,
+    term: "Hello",
+    translation: "Привет",
+    example: "Hello! How are you?",
+  },
+  { id: "v2", lessonOrder: 1, term: "Name", translation: "Имя", example: "My name is Anna." },
+  { id: "v3", lessonOrder: 1, term: "Morning", translation: "Утро", example: "Good morning!" },
+  { id: "v4", lessonOrder: 1, term: "Evening", translation: "Вечер", example: "Good evening!" },
+  {
+    id: "v5",
+    lessonOrder: 1,
+    term: "Please",
+    translation: "Пожалуйста",
+    example: "Coffee, please.",
+  },
+  {
+    id: "v6",
+    lessonOrder: 1,
+    term: "Thank you",
+    translation: "Спасибо",
+    example: "Thank you very much.",
+  },
+  {
+    id: "v7",
+    lessonOrder: 1,
+    term: "Meet",
+    translation: "Встречать",
+    example: "Nice to meet you.",
+  },
+  {
+    id: "v8",
+    lessonOrder: 1,
+    term: "Alphabet",
+    translation: "Алфавит",
+    example: "Let's learn the alphabet.",
+  },
+];
+
 export const COURSE = {
   id: "course-en",
   name: "English",
@@ -191,6 +261,7 @@ export const STUDENTS: Student[] = [
     openedUpTo: 1,
     completed: [],
     watched: {},
+    knownWords: [],
     lastActivity: "2026-08-18",
     avatarTone: "var(--tone-1)",
   },
@@ -208,6 +279,7 @@ export const STUDENTS: Student[] = [
     openedUpTo: 1,
     completed: [],
     watched: {},
+    knownWords: [],
     lastActivity: "2026-08-17",
     avatarTone: "var(--tone-2)",
   },
@@ -225,6 +297,7 @@ export const STUDENTS: Student[] = [
     openedUpTo: 1,
     completed: [],
     watched: {},
+    knownWords: [],
     lastActivity: "2026-08-18",
     avatarTone: "var(--tone-3)",
   },
@@ -242,6 +315,7 @@ export const STUDENTS: Student[] = [
     openedUpTo: 1,
     completed: [],
     watched: {},
+    knownWords: [],
     lastActivity: "2026-08-09",
     avatarTone: "var(--tone-4)",
   },
@@ -259,6 +333,7 @@ export const STUDENTS: Student[] = [
     openedUpTo: 1,
     completed: [],
     watched: {},
+    knownWords: [],
     lastActivity: "2026-08-14",
     avatarTone: "var(--tone-5)",
   },

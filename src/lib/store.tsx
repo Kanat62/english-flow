@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  COURSE_STAGES,
   CURATOR,
   LESSONS,
   MEETINGS,
@@ -16,7 +17,10 @@ import {
   TESTS,
   TEST_ATTEMPTS,
   TODAY,
+  VOCAB_WORDS,
   type AccessStatus,
+  type CefrLevel,
+  type CourseStage,
   type CourseType,
   type Lesson,
   type LessonState,
@@ -27,6 +31,7 @@ import {
   type Role,
   type Student,
   type TestAttempt,
+  type VocabWord,
 } from "./mock-data";
 
 interface Session {
@@ -57,7 +62,12 @@ const initialState: AppState = {
 };
 
 function normalizeStudent(s: Student): Student {
-  return { ...s, completed: s.completed ?? [], watched: s.watched ?? {} };
+  return {
+    ...s,
+    completed: s.completed ?? [],
+    watched: s.watched ?? {},
+    knownWords: s.knownWords ?? [],
+  };
 }
 
 function normalizeState(raw: Partial<AppState>): AppState {
@@ -113,6 +123,7 @@ interface Ctx extends AppState {
   startAttempt: (studentId: string, testId: string) => TestAttempt | null;
   saveAnswer: (attemptId: string, questionId: string, optionIds: string[]) => void;
   submitAttempt: (attemptId: string) => void;
+  setWordKnown: (studentId: string, wordId: string, known: boolean) => void;
 }
 
 const AppContext = createContext<Ctx | null>(null);
@@ -441,6 +452,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
             };
           }),
         })),
+      setWordKnown: (studentId, wordId, known) =>
+        setState((p) => ({
+          ...p,
+          students: p.students.map((st) => {
+            if (st.id !== studentId) return st;
+            const set = new Set(st.knownWords);
+            if (known) set.add(wordId);
+            else set.delete(wordId);
+            return { ...st, knownWords: [...set] };
+          }),
+        })),
     };
   }, [state, ready, login, logout, updateStudent, testVideoUrl]);
 
@@ -520,6 +542,109 @@ export function currentLessonOrder(student: Student) {
     if (!(student.completed ?? []).includes(i)) return i;
   }
   return Math.min(student.openedUpTo, LESSONS.length);
+}
+
+export type StageStatus = "locked" | "current" | "completed";
+
+export function stageForBlock(block: string): CourseStage | undefined {
+  return COURSE_STAGES.find((s) => s.block === block);
+}
+
+export function stageForLesson(lessons: Lesson[], order: number): CourseStage | undefined {
+  const lesson = lessons.find((l) => l.order === order);
+  return lesson ? stageForBlock(lesson.block) : undefined;
+}
+
+export function stageStatus(student: Student, lessons: Lesson[], stage: CourseStage): StageStatus {
+  const stageLessons = lessons.filter((l) => l.block === stage.block);
+  if (stageLessons.length === 0) return "locked";
+  if (stageLessons.every((l) => student.completed.includes(l.order))) return "completed";
+  return stageLessons.some((l) => l.order <= student.openedUpTo) ? "current" : "locked";
+}
+
+export function courseLevels(): CefrLevel[] {
+  return [...new Set(COURSE_STAGES.map((s) => s.level))];
+}
+
+export function levelStatus(student: Student, lessons: Lesson[], level: CefrLevel): StageStatus {
+  const statuses = COURSE_STAGES.filter((s) => s.level === level).map((s) =>
+    stageStatus(student, lessons, s),
+  );
+  if (statuses.every((s) => s === "completed")) return "completed";
+  if (statuses.some((s) => s === "current" || s === "completed")) return "current";
+  return "locked";
+}
+
+export function vocabForLesson(order: number): VocabWord[] {
+  return VOCAB_WORDS.filter((w) => w.lessonOrder === order);
+}
+
+export function accessibleVocab(student: Student): VocabWord[] {
+  return VOCAB_WORDS.filter((w) => w.lessonOrder <= student.openedUpTo);
+}
+
+export function dueVocab(student: Student): VocabWord[] {
+  return accessibleVocab(student).filter((w) => !student.knownWords.includes(w.id));
+}
+
+export function vocabStats(student: Student) {
+  const today = vocabForLesson(currentLessonOrder(student)).filter(
+    (w) => !student.knownWords.includes(w.id),
+  );
+  return {
+    today: today.length,
+    review: dueVocab(student).length,
+    mastered: student.knownWords.length,
+    total: accessibleVocab(student).length,
+  };
+}
+
+export type NextStep =
+  | { kind: "lesson"; lesson: Lesson }
+  | { kind: "test"; lesson: Lesson; test: LessonTest }
+  | { kind: "practice"; meeting: Meeting }
+  | { kind: "vocab"; count: number }
+  | { kind: "done"; nextMeeting?: Meeting };
+
+export function nextStepFor(
+  student: Student,
+  lessons: Lesson[],
+  tests: LessonTest[],
+  attempts: TestAttempt[],
+  meetings: Meeting[],
+): NextStep {
+  for (let order = 1; order <= student.openedUpTo; order++) {
+    if (!student.completed.includes(order)) {
+      const lesson = lessons.find((l) => l.order === order);
+      if (lesson) return { kind: "lesson", lesson };
+      break;
+    }
+  }
+
+  for (const order of [...student.completed].sort((a, b) => a - b)) {
+    const test = testForLesson(tests, order);
+    if (!test) continue;
+    const availability = testAvailability(student, test, attempts);
+    if (
+      availability === "available" ||
+      availability === "failed" ||
+      availability === "in_progress"
+    ) {
+      const lesson = lessons.find((l) => l.order === order);
+      if (lesson) return { kind: "test", lesson, test };
+    }
+  }
+
+  const todayMeeting = meetings.find((m) => m.status === "scheduled" && m.date === TODAY);
+  if (todayMeeting) return { kind: "practice", meeting: todayMeeting };
+
+  const due = dueVocab(student);
+  if (due.length > 0) return { kind: "vocab", count: due.length };
+
+  const nextMeeting = meetings
+    .filter((m) => m.status === "scheduled" && m.date >= TODAY)
+    .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))[0];
+  return nextMeeting ? { kind: "done", nextMeeting } : { kind: "done" };
 }
 
 export function watchedPctOf(student: Student, order: number) {

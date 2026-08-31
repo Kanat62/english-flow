@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   FileText,
   Lock,
+  Sparkles,
   Video,
 } from "lucide-react";
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
@@ -16,6 +17,7 @@ import {
   testAvailability,
   testForLesson,
   useApp,
+  vocabForLesson,
   watchedPctOf,
 } from "@/lib/store";
 import { StudentShell } from "@/components/StudentShell";
@@ -193,6 +195,7 @@ function LessonPage() {
 
         <aside className="space-y-4">
           <TestCard order={lesson.order} student={student} tests={tests} attempts={attempts} />
+          <VocabTeaser order={lesson.order} student={student} />
 
           <div className="surface-card p-5">
             <p className="text-[13px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
@@ -277,6 +280,30 @@ function LessonPage() {
         </aside>
       </div>
     </div>
+  );
+}
+
+function VocabTeaser({ order, student }: { order: number; student: Student }) {
+  const words = vocabForLesson(order);
+  if (words.length === 0) return null;
+  const due = words.filter((w) => !student.knownWords.includes(w.id)).length;
+
+  return (
+    <Link
+      to="/vocabulary"
+      className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3.5 text-sm font-bold transition hover:bg-muted"
+    >
+      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+        <Sparkles className="size-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate">Слова к уроку</span>
+        <span className="block truncate text-xs font-medium text-muted-foreground">
+          {words.length} слов{due > 0 ? ` · ${due} на повторение` : " · всё освоено"}
+        </span>
+      </span>
+      <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+    </Link>
   );
 }
 
