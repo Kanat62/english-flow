@@ -1,9 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CheckCircle2, Clock3, Lock, PlayCircle, Search } from "lucide-react";
+import { CheckCircle2, Clock3, Lock, PlayCircle, Search, FileText } from "lucide-react";
 import { useMemo, useState } from "react";
-import { currentLessonOrder, lessonState, progressOf, useApp } from "@/lib/store";
+import {
+  currentLessonOrder,
+  lessonState,
+  progressOf,
+  testAvailability,
+  testForLesson,
+  useApp,
+} from "@/lib/store";
 import { StudentShell } from "@/components/StudentShell";
-import { EmptyState, LessonPill, ProgressBar } from "@/components/shared";
+import { EmptyState, LessonPill, Pill, ProgressBar } from "@/components/shared";
+import type { LessonTest, Student, TestAttempt } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/course")({
   head: () => ({
@@ -32,7 +40,7 @@ const filters = [
 ] as const;
 
 function CoursePage() {
-  const { currentStudent, lessons } = useApp();
+  const { currentStudent, lessons, tests, attempts } = useApp();
   const student = currentStudent!;
   const [filter, setFilter] = useState<(typeof filters)[number]["id"]>("all");
   const [query, setQuery] = useState("");
@@ -95,7 +103,11 @@ function CoursePage() {
       </div>
 
       {grouped.length === 0 && (
-        <EmptyState icon={Search} title="Ничего не найдено" description="Измените фильтр или запрос." />
+        <EmptyState
+          icon={Search}
+          title="Ничего не найдено"
+          description="Измените фильтр или запрос."
+        />
       )}
 
       {grouped.map(([block, lessons]) => (
@@ -107,50 +119,147 @@ function CoursePage() {
             {lessons.map((l) => {
               const state = lessonState(student, l.order);
               const locked = state === "locked";
+              const test = testForLesson(tests, l.order);
               return (
-                <Link
-                  key={l.id}
-                  to="/lesson/$order"
-                  params={{ order: String(l.order) }}
-                  disabled={locked}
-                  className={`flex items-center gap-3 px-4 py-3.5 transition ${
-                    locked ? "cursor-not-allowed opacity-55" : "hover:bg-muted/60"
-                  } ${l.order === current ? "bg-primary-soft/40" : ""}`}
-                >
-                  <span
-                    className={`grid size-9 shrink-0 place-items-center rounded-xl text-xs font-bold ${
-                      state === "completed"
-                        ? "bg-success-soft text-success"
-                        : locked
-                          ? "bg-muted text-muted-foreground"
-                          : "gradient-primary text-primary-foreground"
-                    }`}
+                <div key={l.id}>
+                  <Link
+                    to="/lesson/$order"
+                    params={{ order: String(l.order) }}
+                    disabled={locked}
+                    className={`flex items-center gap-3 px-4 py-3.5 transition ${
+                      locked ? "cursor-not-allowed opacity-55" : "hover:bg-muted/60"
+                    } ${l.order === current ? "bg-primary-soft/40" : ""}`}
                   >
-                    {state === "completed" ? (
-                      <CheckCircle2 className="size-4" />
-                    ) : locked ? (
-                      <Lock className="size-3.5" />
-                    ) : (
-                      <PlayCircle className="size-4" />
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-bold">
-                      {l.order}. {l.title}
+                    <span
+                      className={`grid size-9 shrink-0 place-items-center rounded-xl text-xs font-bold ${
+                        state === "completed"
+                          ? "bg-success-soft text-success"
+                          : locked
+                            ? "bg-muted text-muted-foreground"
+                            : "gradient-primary text-primary-foreground"
+                      }`}
+                    >
+                      {state === "completed" ? (
+                        <CheckCircle2 className="size-4" />
+                      ) : locked ? (
+                        <Lock className="size-3.5" />
+                      ) : (
+                        <PlayCircle className="size-4" />
+                      )}
                     </span>
-                    <span className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
-                      <Clock3 className="size-3" /> {l.duration} · {l.description}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold">
+                        {l.order}. {l.title}
+                      </span>
+                      <span className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+                        <Clock3 className="size-3" /> {l.duration} · {l.description}
+                      </span>
                     </span>
-                  </span>
-                  <span className="hidden sm:block">
-                    <LessonPill state={state} />
-                  </span>
-                </Link>
+                    <span className="hidden sm:block">
+                      <LessonPill state={state} />
+                    </span>
+                  </Link>
+                  <TestRow order={l.order} test={test} student={student} attempts={attempts} />
+                </div>
               );
             })}
           </div>
         </section>
       ))}
     </div>
+  );
+}
+
+function TestRow({
+  order,
+  test,
+  student,
+  attempts,
+}: {
+  order: number;
+  test: LessonTest | undefined;
+  student: Student;
+  attempts: TestAttempt[];
+}) {
+  const availability = test ? testAvailability(student, test, attempts) : "locked";
+  const locked = availability === "locked";
+  const minutes = test ? Math.round(test.timeLimitSec / 60) : 0;
+  const best = test
+    ? attempts
+        .filter(
+          (a) => a.studentId === student.id && a.testId === test.id && a.status === "submitted",
+        )
+        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0]
+    : undefined;
+
+  const badgeClass =
+    availability === "passed"
+      ? "bg-success-soft text-success"
+      : availability === "failed"
+        ? "bg-warning-soft text-warning"
+        : locked
+          ? "bg-muted text-muted-foreground"
+          : "gradient-primary text-primary-foreground";
+
+  const icon =
+    availability === "passed" ? (
+      <CheckCircle2 className="size-4" />
+    ) : locked ? (
+      <Lock className="size-3.5" />
+    ) : (
+      <FileText className="size-4" />
+    );
+
+  const subtitle = !test
+    ? "Куратор ещё готовит тест"
+    : locked
+      ? "Откроется после урока"
+      : `${test.questions.length} вопросов · ${minutes} мин`;
+
+  const pill =
+    availability === "passed" ? (
+      <Pill tone="success">Пройден · {best?.score}%</Pill>
+    ) : availability === "failed" ? (
+      <Pill tone="warning">{best?.score}% · Повторить</Pill>
+    ) : availability === "in_progress" ? (
+      <Pill tone="warning">Продолжить</Pill>
+    ) : locked ? (
+      <Pill tone="neutral">Закрыт</Pill>
+    ) : (
+      <Pill tone="primary">Пройти тест</Pill>
+    );
+
+  const content = (
+    <>
+      <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${badgeClass}`}>
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-bold">
+          {test?.title ?? `Тест к уроку ${order}`}
+        </span>
+        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+          {subtitle}
+        </span>
+      </span>
+      <span className="hidden sm:block">{pill}</span>
+    </>
+  );
+
+  const rowClass =
+    "flex items-center gap-3 border-t border-dashed border-border/70 px-4 py-2.5 pl-[52px] transition";
+
+  if (locked) {
+    return <div className={`${rowClass} cursor-not-allowed opacity-70`}>{content}</div>;
+  }
+
+  return (
+    <Link
+      to="/lesson/$order/test"
+      params={{ order: String(order) }}
+      className={`${rowClass} hover:bg-muted/60`}
+    >
+      {content}
+    </Link>
   );
 }

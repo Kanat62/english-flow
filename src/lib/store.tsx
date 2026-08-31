@@ -13,15 +13,20 @@ import {
   MEETINGS,
   NOTES,
   STUDENTS,
+  TESTS,
+  TEST_ATTEMPTS,
   TODAY,
   type AccessStatus,
   type CourseType,
   type Lesson,
   type LessonState,
+  type LessonTest,
   type Meeting,
   type Note,
+  type QuestionType,
   type Role,
   type Student,
+  type TestAttempt,
 } from "./mock-data";
 
 interface Session {
@@ -35,9 +40,11 @@ interface AppState {
   notes: Note[];
   session: Session | null;
   lessons: Lesson[];
+  tests: LessonTest[];
+  attempts: TestAttempt[];
 }
 
-const STORAGE_KEY = "elp-state-v3";
+const STORAGE_KEY = "elp-state-v4";
 
 const initialState: AppState = {
   students: STUDENTS,
@@ -45,6 +52,8 @@ const initialState: AppState = {
   notes: NOTES,
   session: null,
   lessons: LESSONS,
+  tests: TESTS,
+  attempts: TEST_ATTEMPTS,
 };
 
 function normalizeStudent(s: Student): Student {
@@ -57,6 +66,8 @@ function normalizeState(raw: Partial<AppState>): AppState {
     ...raw,
     students: (raw.students ?? initialState.students).map(normalizeStudent),
     lessons: raw.lessons?.length ? raw.lessons : initialState.lessons,
+    tests: raw.tests ?? initialState.tests,
+    attempts: raw.attempts ?? initialState.attempts,
   };
 }
 
@@ -81,6 +92,27 @@ interface Ctx extends AppState {
   reset: () => void;
   testVideoUrl: string | null;
   setTestVideoUrl: (url: string | null) => void;
+  createTest: (lessonOrder: number) => void;
+  updateTest: (testId: string, patch: Partial<LessonTest>) => void;
+  deleteTest: (testId: string) => void;
+  publishTest: (testId: string) => void;
+  unpublishTest: (testId: string) => void;
+  addQuestion: (testId: string) => void;
+  updateQuestion: (
+    testId: string,
+    questionId: string,
+    patch: { text?: string; type?: QuestionType },
+  ) => void;
+  deleteQuestion: (testId: string, questionId: string) => void;
+  updateOption: (
+    testId: string,
+    questionId: string,
+    optionId: string,
+    patch: { text?: string; isCorrect?: boolean },
+  ) => void;
+  startAttempt: (studentId: string, testId: string) => TestAttempt | null;
+  saveAnswer: (attemptId: string, questionId: string, optionIds: string[]) => void;
+  submitAttempt: (attemptId: string) => void;
 }
 
 const AppContext = createContext<Ctx | null>(null);
@@ -149,9 +181,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setState((p) => ({
           ...p,
           students: p.students.map((st) =>
-            st.id === id
-              ? { ...st, openedUpTo: Math.min(LESSONS.length, st.openedUpTo + 1) }
-              : st,
+            st.id === id ? { ...st, openedUpTo: Math.min(LESSONS.length, st.openedUpTo + 1) } : st,
           ),
         })),
       completeLesson: (studentId, order) =>
@@ -214,8 +244,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ...p.notes,
           ],
         })),
-      deleteNote: (id) =>
-        setState((p) => ({ ...p, notes: p.notes.filter((n) => n.id !== id) })),
+      deleteNote: (id) => setState((p) => ({ ...p, notes: p.notes.filter((n) => n.id !== id) })),
       addMeeting: (m) => setState((p) => ({ ...p, meetings: [...p.meetings, m] })),
       updateMeeting: (id, patch) =>
         setState((p) => ({
@@ -234,6 +263,184 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       testVideoUrl,
       setTestVideoUrl,
+      createTest: (lessonOrder) =>
+        setState((p) => ({
+          ...p,
+          tests: p.tests.some((t) => t.lessonOrder === lessonOrder)
+            ? p.tests
+            : [
+                ...p.tests,
+                {
+                  id: `test-${Date.now()}`,
+                  lessonOrder,
+                  title: `Тест к уроку ${lessonOrder}`,
+                  timeLimitSec: 300,
+                  passingScore: 70,
+                  status: "draft",
+                  questions: [],
+                },
+              ],
+        })),
+      updateTest: (testId, patch) =>
+        setState((p) => ({
+          ...p,
+          tests: p.tests.map((t) => (t.id === testId ? { ...t, ...patch } : t)),
+        })),
+      deleteTest: (testId) =>
+        setState((p) => ({ ...p, tests: p.tests.filter((t) => t.id !== testId) })),
+      publishTest: (testId) =>
+        setState((p) => ({
+          ...p,
+          tests: p.tests.map((t) => (t.id === testId ? { ...t, status: "published" } : t)),
+        })),
+      unpublishTest: (testId) =>
+        setState((p) => ({
+          ...p,
+          tests: p.tests.map((t) => (t.id === testId ? { ...t, status: "draft" } : t)),
+        })),
+      addQuestion: (testId) =>
+        setState((p) => ({
+          ...p,
+          tests: p.tests.map((t) => {
+            if (t.id !== testId) return t;
+            const order = t.questions.length + 1;
+            const qId = `${testId}-q${Date.now()}`;
+            return {
+              ...t,
+              questions: [
+                ...t.questions,
+                {
+                  id: qId,
+                  text: "",
+                  type: "single",
+                  order,
+                  options: [0, 1, 2, 3].map((i) => ({
+                    id: `${qId}-o${i}`,
+                    text: "",
+                    isCorrect: i === 0,
+                  })),
+                },
+              ],
+            };
+          }),
+        })),
+      updateQuestion: (testId, questionId, patch) =>
+        setState((p) => ({
+          ...p,
+          tests: p.tests.map((t) =>
+            t.id !== testId
+              ? t
+              : {
+                  ...t,
+                  questions: t.questions.map((q) => (q.id === questionId ? { ...q, ...patch } : q)),
+                },
+          ),
+        })),
+      deleteQuestion: (testId, questionId) =>
+        setState((p) => ({
+          ...p,
+          tests: p.tests.map((t) =>
+            t.id !== testId
+              ? t
+              : {
+                  ...t,
+                  questions: t.questions
+                    .filter((q) => q.id !== questionId)
+                    .map((q, i) => ({ ...q, order: i + 1 })),
+                },
+          ),
+        })),
+      updateOption: (testId, questionId, optionId, patch) =>
+        setState((p) => ({
+          ...p,
+          tests: p.tests.map((t) =>
+            t.id !== testId
+              ? t
+              : {
+                  ...t,
+                  questions: t.questions.map((q) => {
+                    if (q.id !== questionId) return q;
+                    let options = q.options.map((o) =>
+                      o.id === optionId ? { ...o, ...patch } : o,
+                    );
+                    if (patch.isCorrect && q.type === "single") {
+                      options = options.map((o) => ({ ...o, isCorrect: o.id === optionId }));
+                    }
+                    return { ...q, options };
+                  }),
+                },
+          ),
+        })),
+      startAttempt: (studentId, testId) => {
+        const test = state.tests.find((t) => t.id === testId);
+        if (!test) return null;
+        const existing = state.attempts.find(
+          (a) =>
+            a.studentId === studentId &&
+            a.testId === testId &&
+            a.status === "in_progress" &&
+            new Date(a.expiresAt).getTime() > Date.now(),
+        );
+        if (existing) return existing;
+        const now = new Date();
+        const attempt: TestAttempt = {
+          id: `attempt-${Date.now()}`,
+          testId,
+          lessonOrder: test.lessonOrder,
+          studentId,
+          startedAt: now.toISOString(),
+          expiresAt: new Date(now.getTime() + test.timeLimitSec * 1000).toISOString(),
+          submittedAt: null,
+          answers: {},
+          correctCount: null,
+          totalQuestions: test.questions.length,
+          score: null,
+          passed: null,
+          status: "in_progress",
+        };
+        setState((p) => ({ ...p, attempts: [...p.attempts, attempt] }));
+        return attempt;
+      },
+      saveAnswer: (attemptId, questionId, optionIds) =>
+        setState((p) => ({
+          ...p,
+          attempts: p.attempts.map((a) =>
+            a.id === attemptId && a.status === "in_progress"
+              ? { ...a, answers: { ...a.answers, [questionId]: optionIds } }
+              : a,
+          ),
+        })),
+      submitAttempt: (attemptId) =>
+        setState((p) => ({
+          ...p,
+          attempts: p.attempts.map((a) => {
+            if (a.id !== attemptId || a.status !== "in_progress") return a;
+            const test = p.tests.find((t) => t.id === a.testId);
+            if (!test) return a;
+            const correctCount = test.questions.reduce((sum, q) => {
+              const correctIds = q.options
+                .filter((o) => o.isCorrect)
+                .map((o) => o.id)
+                .sort();
+              const givenIds = [...(a.answers[q.id] ?? [])].sort();
+              const isCorrect =
+                correctIds.length === givenIds.length &&
+                correctIds.every((id, i) => id === givenIds[i]);
+              return sum + (isCorrect ? 1 : 0);
+            }, 0);
+            const total = test.questions.length;
+            const score = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+            return {
+              ...a,
+              submittedAt: new Date().toISOString(),
+              correctCount,
+              totalQuestions: total,
+              score,
+              passed: score >= test.passingScore,
+              status: "submitted",
+            };
+          }),
+        })),
     };
   }, [state, ready, login, logout, updateStudent, testVideoUrl]);
 
@@ -252,6 +459,46 @@ export function lessonState(student: Student, order: number): LessonState {
   if ((student.completed ?? []).includes(order)) return "completed";
   if (order <= student.openedUpTo) return "available";
   return "locked";
+}
+
+export type TestAvailability = "locked" | "available" | "in_progress" | "passed" | "failed";
+
+export function testForLesson(tests: LessonTest[], order: number, publishedOnly = true) {
+  return tests.find((t) => t.lessonOrder === order && (!publishedOnly || t.status === "published"));
+}
+
+export function attemptsFor(attempts: TestAttempt[], studentId: string, testId: string) {
+  return attempts
+    .filter((a) => a.studentId === studentId && a.testId === testId)
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+}
+
+export function activeAttempt(attempts: TestAttempt[], studentId: string, testId: string) {
+  return attemptsFor(attempts, studentId, testId).find(
+    (a) => a.status === "in_progress" && new Date(a.expiresAt).getTime() > Date.now(),
+  );
+}
+
+export function bestAttempt(attempts: TestAttempt[], studentId: string, testId: string) {
+  const submitted = attemptsFor(attempts, studentId, testId).filter(
+    (a) => a.status === "submitted",
+  );
+  if (submitted.length === 0) return null;
+  return submitted.reduce((best, a) => ((a.score ?? 0) > (best.score ?? 0) ? a : best));
+}
+
+export function testAvailability(
+  student: Student,
+  test: LessonTest,
+  attempts: TestAttempt[],
+): TestAvailability {
+  if (test.status !== "published" || lessonState(student, test.lessonOrder) !== "completed") {
+    return "locked";
+  }
+  if (activeAttempt(attempts, student.id, test.id)) return "in_progress";
+  const best = bestAttempt(attempts, student.id, test.id);
+  if (!best) return "available";
+  return best.passed ? "passed" : "failed";
 }
 
 export function daysLeft(endDate: string, from = TODAY) {

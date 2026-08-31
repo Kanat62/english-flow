@@ -14,12 +14,14 @@ import { toast } from "sonner";
 import { TODAY, type AccessStatus } from "@/lib/mock-data";
 import {
   accessStatus,
+  bestAttempt,
   currentLessonOrder,
   daysLeft,
   formatDate,
   formatFull,
   lessonState,
   progressOf,
+  testForLesson,
   useApp,
 } from "@/lib/store";
 import { CuratorShell } from "@/components/CuratorShell";
@@ -65,6 +67,8 @@ function StudentCard() {
     updateStudent,
     meetingsFor,
     addMeeting,
+    tests,
+    attempts,
   } = useApp();
   const [tab, setTab] = useState<(typeof tabs)[number]>("Обзор");
   const [note, setNote] = useState("");
@@ -270,6 +274,8 @@ function StudentCard() {
         <div className="surface-card max-h-[70vh] divide-y divide-border overflow-y-auto">
           {lessons.map((l) => {
             const st = lessonState(s, l.order);
+            const test = testForLesson(tests, l.order, false);
+            const best = test ? bestAttempt(attempts, s.id, test.id) : null;
             return (
               <div key={l.id} className="flex items-center gap-3 px-4 py-3">
                 <span
@@ -295,9 +301,16 @@ function StudentCard() {
                   </span>
                   <span className="block truncate text-xs text-muted-foreground">{l.block}</span>
                 </span>
+                {best && (
+                  <span className="hidden sm:block">
+                    <Pill tone={best.passed ? "success" : "warning"}>Тест · {best.score}%</Pill>
+                  </span>
+                )}
                 <span className="hidden sm:block">
                   <Pill
-                    tone={st === "completed" ? "success" : st === "available" ? "primary" : "neutral"}
+                    tone={
+                      st === "completed" ? "success" : st === "available" ? "primary" : "neutral"
+                    }
                   >
                     {st === "completed" ? "Завершён" : st === "available" ? "Открыт" : "Закрыт"}
                   </Pill>
@@ -332,7 +345,11 @@ function StudentCard() {
           </div>
 
           {studentNotes.length === 0 ? (
-            <EmptyState icon={StickyNote} title="У вас пока нет заметок" description="Ученик их не видит." />
+            <EmptyState
+              icon={StickyNote}
+              title="У вас пока нет заметок"
+              description="Ученик их не видит."
+            />
           ) : (
             studentNotes.map((n) => (
               <div key={n.id} className="surface-card p-4">

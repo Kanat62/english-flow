@@ -4,14 +4,23 @@ import {
   ArrowRight,
   CalendarClock,
   CheckCircle2,
+  FileText,
   Lock,
   Video,
 } from "lucide-react";
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { toast } from "sonner";
-import { formatDate, lessonState, useApp, watchedPctOf } from "@/lib/store";
+import {
+  formatDate,
+  lessonState,
+  testAvailability,
+  testForLesson,
+  useApp,
+  watchedPctOf,
+} from "@/lib/store";
 import { StudentShell } from "@/components/StudentShell";
 import { EmptyState, LessonPill, Pill, ProgressBar, VideoPlayer } from "@/components/shared";
+import type { LessonTest, Student, TestAttempt } from "@/lib/mock-data";
 
 const COMPLETE_THRESHOLD = 0.9;
 
@@ -33,8 +42,16 @@ export const Route = createFileRoute("/lesson/$order")({
 
 function LessonPage() {
   const { order } = Route.useParams();
-  const { currentStudent, completeLesson, updateWatchProgress, meetingsFor, testVideoUrl, lessons } =
-    useApp();
+  const {
+    currentStudent,
+    completeLesson,
+    updateWatchProgress,
+    meetingsFor,
+    testVideoUrl,
+    lessons,
+    tests,
+    attempts,
+  } = useApp();
   const navigate = useNavigate();
   const student = currentStudent!;
   const num = Number(order);
@@ -52,7 +69,11 @@ function LessonPage() {
 
   if (!lesson) {
     return (
-      <EmptyState icon={Lock} title="Урок не найден" description="Проверьте ссылку или вернитесь к курсу." />
+      <EmptyState
+        icon={Lock}
+        title="Урок не найден"
+        description="Проверьте ссылку или вернитесь к курсу."
+      />
     );
   }
 
@@ -152,7 +173,9 @@ function LessonPage() {
             <div className="flex flex-wrap gap-3">
               {next && !nextLocked && (
                 <button
-                  onClick={() => navigate({ to: "/lesson/$order", params: { order: String(next.order) } })}
+                  onClick={() =>
+                    navigate({ to: "/lesson/$order", params: { order: String(next.order) } })
+                  }
                   className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-5 py-3 text-sm font-bold transition hover:bg-muted"
                 >
                   Следующий урок <ArrowRight className="size-4" />
@@ -169,6 +192,8 @@ function LessonPage() {
         </section>
 
         <aside className="space-y-4">
+          <TestCard order={lesson.order} student={student} tests={tests} attempts={attempts} />
+
           <div className="surface-card p-5">
             <p className="text-[13px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
               Практика по теме
@@ -251,6 +276,68 @@ function LessonPage() {
           </Link>
         </aside>
       </div>
+    </div>
+  );
+}
+
+function TestCard({
+  order,
+  student,
+  tests,
+  attempts,
+}: {
+  order: number;
+  student: Student;
+  tests: LessonTest[];
+  attempts: TestAttempt[];
+}) {
+  const test = testForLesson(tests, order);
+
+  if (!test) {
+    return (
+      <div className="surface-card p-5">
+        <p className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+          <FileText className="size-4" /> Тест к уроку
+        </p>
+        <p className="mt-2.5 text-sm text-muted-foreground">
+          Куратор пока не добавил тест к этому уроку.
+        </p>
+      </div>
+    );
+  }
+
+  const availability = testAvailability(student, test, attempts);
+  const minutes = Math.round(test.timeLimitSec / 60);
+
+  return (
+    <div className="surface-card p-5">
+      <p className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+        <FileText className="size-4" /> Тест к уроку
+      </p>
+      <p className="mt-2.5 text-sm font-bold">{test.title}</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {test.questions.length} вопросов · {minutes} мин
+      </p>
+
+      {availability === "locked" ? (
+        <span className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-muted px-4 py-2.5 text-xs font-bold text-muted-foreground">
+          <Lock className="size-3.5" /> Доступен после просмотра урока
+        </span>
+      ) : (
+        <Link
+          to="/lesson/$order/test"
+          params={{ order: String(order) }}
+          className="mt-4 flex items-center justify-center gap-2 rounded-xl gradient-primary py-2.5 text-sm font-bold text-primary-foreground shadow-glow"
+        >
+          {availability === "in_progress"
+            ? "Продолжить тест"
+            : availability === "passed"
+              ? "Пересмотреть результат"
+              : availability === "failed"
+                ? "Пройти ещё раз"
+                : "Пройти тест"}
+        </Link>
+      )}
     </div>
   );
 }

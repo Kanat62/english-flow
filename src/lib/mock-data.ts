@@ -6,6 +6,9 @@ export type AccessStatus = "active" | "expired" | "disabled";
 export type LessonState = "locked" | "available" | "completed";
 export type ProgressStatus = "not_started" | "in_progress" | "completed";
 export type MeetingStatus = "scheduled" | "completed" | "cancelled";
+export type QuestionType = "single" | "multiple";
+export type TestStatus = "draft" | "published";
+export type AttemptStatus = "in_progress" | "submitted";
 
 export interface Lesson {
   id: string;
@@ -28,6 +31,46 @@ export interface Meeting {
   meetUrl: string;
   type: CourseType;
   status: MeetingStatus;
+}
+
+export interface QuestionOption {
+  id: string;
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface TestQuestion {
+  id: string;
+  text: string;
+  type: QuestionType;
+  order: number;
+  options: QuestionOption[];
+}
+
+export interface LessonTest {
+  id: string;
+  lessonOrder: number;
+  title: string;
+  timeLimitSec: number;
+  passingScore: number; // 0-100
+  status: TestStatus;
+  questions: TestQuestion[];
+}
+
+export interface TestAttempt {
+  id: string;
+  testId: string;
+  lessonOrder: number;
+  studentId: string;
+  startedAt: string; // ISO datetime
+  expiresAt: string; // ISO datetime
+  submittedAt: string | null;
+  answers: Record<string, string[]>; // questionId -> selected optionIds
+  correctCount: number | null;
+  totalQuestions: number;
+  score: number | null; // 0-100
+  passed: boolean | null;
+  status: AttemptStatus;
 }
 
 export interface Note {
@@ -297,5 +340,82 @@ export const NOTES: Note[] = [
     createdAt: "2026-08-14",
   },
 ];
+
+function makeQuestion(
+  order: number,
+  text: string,
+  correctIndex: number,
+  options: string[],
+): TestQuestion {
+  return {
+    id: `l1q${order}`,
+    text,
+    type: "single",
+    order,
+    options: options.map((o, i) => ({
+      id: `l1q${order}o${i + 1}`,
+      text: o,
+      isCorrect: i === correctIndex,
+    })),
+  };
+}
+
+export const TESTS: LessonTest[] = [
+  {
+    id: "test-1",
+    lessonOrder: 1,
+    title: "Тест к уроку 1",
+    timeLimitSec: 300,
+    passingScore: 70,
+    status: "published",
+    questions: [
+      makeQuestion(1, "What is your name?", 0, [
+        "My name is Anna.",
+        "I name Anna.",
+        "Me is Anna.",
+        "My names Anna.",
+      ]),
+      makeQuestion(2, "How are you?", 0, [
+        "Fine, thank you.",
+        "I'm 20 years.",
+        "I am from Bishkek.",
+        "My name is Kanat.",
+      ]),
+      makeQuestion(3, "Choose the correct greeting for the morning.", 1, [
+        "Good night",
+        "Good morning",
+        "Good evening",
+        "Goodbye",
+      ]),
+      makeQuestion(4, 'Which letter comes after "D" in the English alphabet?', 2, [
+        "C",
+        "F",
+        "E",
+        "B",
+      ]),
+      makeQuestion(5, '"___ you later" — choose the correct word.', 3, [
+        "Hello",
+        "Please",
+        "Sorry",
+        "See",
+      ]),
+      makeQuestion(6, 'Choose the correct response to "Nice to meet you".', 0, [
+        "Nice to meet you too.",
+        "You are welcome.",
+        "I'm sorry.",
+        "Good luck.",
+      ]),
+      makeQuestion(7, "Which word is a polite way to say goodbye?", 1, [
+        "Hi",
+        "Bye",
+        "What",
+        "Yes",
+      ]),
+      makeQuestion(8, 'Complete: "Thank you very ___."', 2, ["good", "well", "much", "nice"]),
+    ],
+  },
+];
+
+export const TEST_ATTEMPTS: TestAttempt[] = [];
 
 export const TODAY = "2026-08-18";

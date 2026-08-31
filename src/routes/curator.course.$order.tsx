@@ -3,14 +3,25 @@ import {
   ArrowLeft,
   CheckCircle2,
   Circle,
+  FileText,
   Lock,
   PlayCircle,
+  Plus,
+  Trash2,
   Unlock,
   Upload,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { lessonStats, publishedUpTo, useApp, watchedPctOf } from "@/lib/store";
+import {
+  attemptsFor,
+  bestAttempt,
+  lessonStats,
+  publishedUpTo,
+  useApp,
+  watchedPctOf,
+} from "@/lib/store";
+import type { QuestionType } from "@/lib/mock-data";
 import { CuratorShell } from "@/components/CuratorShell";
 import {
   Avatar,
@@ -42,7 +53,24 @@ export const Route = createFileRoute("/curator/course/$order")({
 
 function LessonEditorPage() {
   const { order } = Route.useParams();
-  const { students, lessons, updateLesson, publishLesson, unpublishLesson } = useApp();
+  const {
+    students,
+    lessons,
+    updateLesson,
+    publishLesson,
+    unpublishLesson,
+    tests,
+    attempts,
+    createTest,
+    updateTest,
+    deleteTest,
+    publishTest,
+    unpublishTest,
+    addQuestion,
+    updateQuestion,
+    deleteQuestion,
+    updateOption,
+  } = useApp();
   const num = Number(order);
   const lesson = lessons.find((l) => l.order === num);
   const [title, setTitle] = useState(lesson?.title ?? "");
@@ -67,6 +95,7 @@ function LessonEditorPage() {
 
   const stats = lessonStats(students, lesson.order);
   const isOpenForAll = lesson.order <= publishedUpTo(students);
+  const test = tests.find((t) => t.lessonOrder === lesson.order);
 
   const saveText = () => {
     updateLesson(lesson.order, { title: title.trim() || lesson.title, description });
@@ -184,6 +213,204 @@ function LessonEditorPage() {
             </button>
           )}
         </div>
+      </section>
+
+      <section className="surface-card space-y-3.5 p-5">
+        <SectionTitle title="Тест к уроку" icon={FileText} />
+        {!test ? (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border py-8 text-center">
+            <p className="text-sm text-muted-foreground">У этого урока пока нет теста.</p>
+            <button
+              onClick={() => createTest(lesson.order)}
+              className="inline-flex items-center gap-2 rounded-xl gradient-primary px-4 py-2.5 text-xs font-bold text-primary-foreground"
+            >
+              <Plus className="size-3.5" /> Создать тест
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="min-w-[200px] flex-1 text-xs font-semibold text-muted-foreground">
+                Название теста
+                <input
+                  value={test.title}
+                  onChange={(e) => updateTest(test.id, { title: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-medium outline-none focus:border-primary"
+                />
+              </label>
+              <label className="w-28 text-xs font-semibold text-muted-foreground">
+                Время (мин)
+                <input
+                  type="number"
+                  min={1}
+                  value={Math.round(test.timeLimitSec / 60)}
+                  onChange={(e) =>
+                    updateTest(test.id, {
+                      timeLimitSec: Math.max(1, Number(e.target.value) || 1) * 60,
+                    })
+                  }
+                  className="mt-1 w-full rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-medium outline-none focus:border-primary"
+                />
+              </label>
+              <label className="w-32 text-xs font-semibold text-muted-foreground">
+                Проходной, %
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={test.passingScore}
+                  onChange={(e) =>
+                    updateTest(test.id, {
+                      passingScore: Math.min(100, Math.max(0, Number(e.target.value) || 0)),
+                    })
+                  }
+                  className="mt-1 w-full rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-medium outline-none focus:border-primary"
+                />
+              </label>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Pill tone={test.status === "published" ? "success" : "neutral"}>
+                {test.status === "published" ? "Опубликован" : "Черновик"}
+              </Pill>
+              {test.status === "published" ? (
+                <button
+                  onClick={() => {
+                    unpublishTest(test.id);
+                    toast.success("Тест снят с публикации");
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-bold text-muted-foreground transition hover:bg-muted"
+                >
+                  <Lock className="size-3.5" /> Снять с публикации
+                </button>
+              ) : (
+                <button
+                  disabled={test.questions.length === 0}
+                  onClick={() => {
+                    publishTest(test.id);
+                    toast.success("Тест опубликован");
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg gradient-primary px-3 py-1.5 text-xs font-bold text-primary-foreground disabled:opacity-40"
+                >
+                  <Unlock className="size-3.5" /> Опубликовать
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  if (!window.confirm("Удалить тест вместе со всеми вопросами?")) return;
+                  deleteTest(test.id);
+                  toast.success("Тест удалён");
+                }}
+                className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-bold text-muted-foreground transition hover:text-destructive"
+              >
+                <Trash2 className="size-3.5" /> Удалить тест
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {test.questions.map((q, qi) => (
+                <div key={q.id} className="rounded-xl border border-border p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-2 grid size-6 shrink-0 place-items-center rounded-full bg-muted text-[11px] font-bold">
+                      {qi + 1}
+                    </span>
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <input
+                        value={q.text}
+                        onChange={(e) => updateQuestion(test.id, q.id, { text: e.target.value })}
+                        placeholder="Текст вопроса"
+                        className="w-full rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-semibold outline-none focus:border-primary"
+                      />
+                      <select
+                        value={q.type}
+                        onChange={(e) =>
+                          updateQuestion(test.id, q.id, { type: e.target.value as QuestionType })
+                        }
+                        className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-bold outline-none"
+                      >
+                        <option value="single">Один правильный ответ</option>
+                        <option value="multiple">Несколько правильных ответов</option>
+                      </select>
+                      <div className="space-y-1.5 pt-1">
+                        {q.options.map((o) => (
+                          <div key={o.id} className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateOption(test.id, q.id, o.id, { isCorrect: !o.isCorrect })
+                              }
+                              title="Отметить правильным"
+                              className={`grid size-5 shrink-0 place-items-center border text-[10px] ${
+                                q.type === "single" ? "rounded-full" : "rounded-[4px]"
+                              } ${
+                                o.isCorrect
+                                  ? "border-success bg-success text-white"
+                                  : "border-input"
+                              }`}
+                            >
+                              {o.isCorrect && "✓"}
+                            </button>
+                            <input
+                              value={o.text}
+                              onChange={(e) =>
+                                updateOption(test.id, q.id, o.id, { text: e.target.value })
+                              }
+                              placeholder="Вариант ответа"
+                              className="w-full min-w-0 flex-1 rounded-lg border border-input bg-surface px-2.5 py-2 text-xs font-medium outline-none focus:border-primary"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => deleteQuestion(test.id, q.id)}
+                      aria-label="Удалить вопрос"
+                      className="mt-2 shrink-0 text-muted-foreground transition hover:text-destructive"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => addQuestion(test.id)}
+              className="inline-flex items-center gap-2 rounded-xl border border-dashed border-border px-4 py-2.5 text-xs font-bold text-muted-foreground transition hover:bg-muted"
+            >
+              <Plus className="size-3.5" /> Добавить вопрос
+            </button>
+
+            <div className="surface-card mt-1 divide-y divide-border overflow-hidden">
+              <p className="bg-muted/40 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Результаты учеников
+              </p>
+              {students.map((s) => {
+                const best = bestAttempt(attempts, s.id, test.id);
+                const inProgress = attemptsFor(attempts, s.id, test.id).some(
+                  (a) => a.status === "in_progress" && new Date(a.expiresAt).getTime() > Date.now(),
+                );
+                return (
+                  <div key={s.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <Avatar name={`${s.firstName} ${s.lastName}`} tone={s.avatarTone} size="sm" />
+                    <p className="min-w-0 flex-1 truncate text-sm font-bold">
+                      {s.firstName} {s.lastName}
+                    </p>
+                    {best ? (
+                      <Pill tone={best.passed ? "success" : "warning"}>
+                        {best.correctCount}/{best.totalQuestions} · {best.score}%
+                      </Pill>
+                    ) : inProgress ? (
+                      <Pill tone="primary">Проходит сейчас</Pill>
+                    ) : (
+                      <Pill tone="neutral">Не проходил</Pill>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </section>
 
       <section className="surface-card space-y-2.5 p-5">
