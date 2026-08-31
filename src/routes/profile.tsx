@@ -5,7 +5,6 @@ import {
   daysLeft,
   formatFull,
   practiceStats,
-  progressOf,
   testsStats,
   useApp,
   vocabStats,
@@ -37,7 +36,6 @@ function ProfilePage() {
   const s = currentStudent!;
   const access = accessStatus(s);
   const left = daysLeft(s.endDate);
-  const progress = progressOf(s);
   const vocab = vocabStats(s);
   const testStats = testsStats(s, tests, attempts);
   const practice = practiceStats(meetingsFor(s));
@@ -82,7 +80,6 @@ function ProfilePage() {
         <SectionTitle title="Цель" icon={Target} />
         <div className="surface-card p-5 text-sm">
           <p className="font-bold">Уверенно говорить по-английски</p>
-          <p className="mt-1 text-muted-foreground">Ориентир курса: B1 / B2</p>
         </div>
       </section>
 
@@ -107,7 +104,6 @@ function ProfilePage() {
             </div>
           ))}
         </div>
-        <p className="mt-2 text-right text-xs text-muted-foreground">{progress}% курса пройдено</p>
       </section>
 
       <section>
@@ -123,9 +119,6 @@ function ProfilePage() {
             </div>
           ))}
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Изменить данные и продлить доступ может куратор.
-        </p>
       </section>
     </div>
   );
