@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { BookOpen, Compass, Home, LogOut, User, Video } from "lucide-react";
+import { BookOpen, Home, LogOut, User, Video } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/lib/store";
@@ -9,7 +9,6 @@ const nav = [
   { to: "/dashboard", label: "Главная", icon: Home },
   { to: "/learn", label: "Учёба", icon: BookOpen },
   { to: "/practice", label: "Практика", icon: Video },
-  { to: "/journey", label: "Мой путь", icon: Compass },
   { to: "/profile", label: "Профиль", icon: User },
 ] as const;
 
@@ -101,7 +100,7 @@ export function StudentShell({ children }: { children: ReactNode }) {
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 backdrop-blur lg:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-5">
+        <div className="mx-auto grid max-w-md grid-cols-4">
           {nav.map((item) => {
             const active = pathname.startsWith(item.to);
             return (

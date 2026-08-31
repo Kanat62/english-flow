@@ -1,6 +1,17 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, CalendarDays, Compass, Phone, User2 } from "lucide-react";
-import { accessStatus, daysLeft, formatFull, useApp } from "@/lib/store";
+import { createFileRoute } from "@tanstack/react-router";
+import { CalendarDays, CheckCircle2, Compass, Phone, Target, User2 } from "lucide-react";
+import {
+  accessStatus,
+  courseLevels,
+  daysLeft,
+  formatFull,
+  levelStatus,
+  practiceStats,
+  progressOf,
+  testsStats,
+  useApp,
+  vocabStats,
+} from "@/lib/store";
 import { StudentShell } from "@/components/StudentShell";
 import { AccessPill, Avatar, SectionTitle } from "@/components/shared";
 
@@ -24,10 +35,14 @@ export const Route = createFileRoute("/profile")({
 });
 
 function ProfilePage() {
-  const { currentStudent } = useApp();
+  const { currentStudent, lessons, tests, attempts, meetingsFor } = useApp();
   const s = currentStudent!;
   const access = accessStatus(s);
   const left = daysLeft(s.endDate);
+  const progress = progressOf(s);
+  const vocab = vocabStats(s);
+  const testStats = testsStats(s, tests, attempts);
+  const practice = practiceStats(meetingsFor(s));
 
   const rows = [
     { icon: User2, label: "Курс", value: "English" },
@@ -65,16 +80,73 @@ function ProfilePage() {
         </div>
       </div>
 
-      <Link
-        to="/journey"
-        className="surface-card flex items-center gap-3 p-4 text-sm font-bold transition hover:bg-muted"
-      >
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
-          <Compass className="size-4" />
-        </span>
-        <span className="min-w-0 flex-1">Мой путь и прогресс</span>
-        <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
-      </Link>
+      <section>
+        <SectionTitle title="Твой путь" icon={Compass} />
+        <div className="surface-card p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            {courseLevels().map((level, i, arr) => {
+              const status = levelStatus(s, lessons, level);
+              return (
+                <div key={level} className="flex items-center gap-2">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-extrabold ${
+                      status === "completed"
+                        ? "bg-success-soft text-success"
+                        : status === "current"
+                          ? "gradient-primary text-primary-foreground shadow-glow"
+                          : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {level}
+                    {status === "completed" && <CheckCircle2 className="size-3.5" />}
+                  </span>
+                  {i < arr.length - 1 && <span className="text-muted-foreground">—</span>}
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Текущий уровень:{" "}
+            <span className="font-bold text-foreground">
+              {courseLevels().find((l) => levelStatus(s, lessons, l) === "current") ??
+                courseLevels()[0]}
+            </span>
+            . Ты сейчас здесь.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <SectionTitle title="Цель" icon={Target} />
+        <div className="surface-card p-5 text-sm">
+          <p className="font-bold">Уверенно говорить по-английски</p>
+          <p className="mt-1 text-muted-foreground">Ориентир курса: B1 / B2</p>
+        </div>
+      </section>
+
+      <section>
+        <SectionTitle title="Обучение" />
+        <div className="surface-card divide-y divide-border overflow-hidden">
+          {[
+            { label: "Уроки", value: `${s.completed.length} / ${lessons.length}` },
+            { label: "Тесты", value: `${testStats.passed} / ${testStats.total}` },
+            { label: "Слова", value: `${vocab.mastered}` },
+            {
+              label: "Практика",
+              value:
+                practice.total === 0
+                  ? "—"
+                  : `${practice.total} занятий, ${practice.attended} посещено`,
+            },
+          ].map((row) => (
+            <div key={row.label} className="flex items-center justify-between px-4 py-3.5">
+              <span className="text-sm text-muted-foreground">{row.label}</span>
+              <span className="text-sm font-bold">{row.value}</span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-right text-xs text-muted-foreground">{progress}% курса пройдено</p>
+      </section>
 
       <section>
         <SectionTitle title="Личные данные" icon={User2} />

@@ -181,7 +181,7 @@ function Dashboard() {
             </p>
           )}
           <Link
-            to="/journey"
+            to="/profile"
             className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-primary"
           >
             Мой путь <ArrowRight className="size-4" />
