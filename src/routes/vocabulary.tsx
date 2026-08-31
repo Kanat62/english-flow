@@ -51,10 +51,10 @@ function VocabularyPage() {
   return (
     <div className="mx-auto max-w-lg space-y-6 rise-in">
       <Link
-        to="/course"
+        to="/learn"
         className="inline-flex items-center gap-1.5 text-sm font-bold text-muted-foreground transition hover:text-foreground"
       >
-        <ArrowLeft className="size-4" /> К курсу
+        <ArrowLeft className="size-4" /> К учёбе
       </Link>
 
       <header>

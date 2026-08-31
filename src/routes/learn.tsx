@@ -17,7 +17,7 @@ import { StudentShell } from "@/components/StudentShell";
 import { EmptyState, LessonPill, Pill, ProgressBar } from "@/components/shared";
 import type { LessonTest, Student, TestAttempt } from "@/lib/mock-data";
 
-export const Route = createFileRoute("/course")({
+export const Route = createFileRoute("/learn")({
   head: () => ({
     meta: [
       { title: "Курс English — учебный путь" },

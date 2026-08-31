@@ -599,6 +599,20 @@ export function vocabStats(student: Student) {
   };
 }
 
+export function practiceStats(meetings: Meeting[]) {
+  const finished = meetings.filter((m) => m.status !== "scheduled");
+  const attended = finished.filter((m) => m.status === "completed").length;
+  return { total: finished.length, attended };
+}
+
+export function testsStats(student: Student, tests: LessonTest[], attempts: TestAttempt[]) {
+  const accessible = tests.filter(
+    (t) => t.status === "published" && t.lessonOrder <= student.openedUpTo,
+  );
+  const passed = accessible.filter((t) => bestAttempt(attempts, student.id, t.id)?.passed).length;
+  return { total: accessible.length, passed };
+}
+
 export type NextStep =
   | { kind: "lesson"; lesson: Lesson }
   | { kind: "test"; lesson: Lesson; test: LessonTest }

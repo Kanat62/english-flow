@@ -1,16 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { CalendarDays, GraduationCap, Phone, User2 } from "lucide-react";
-import { LESSONS } from "@/lib/mock-data";
-import {
-  accessStatus,
-  currentLessonOrder,
-  daysLeft,
-  formatFull,
-  progressOf,
-  useApp,
-} from "@/lib/store";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowRight, CalendarDays, Compass, Phone, User2 } from "lucide-react";
+import { accessStatus, daysLeft, formatFull, useApp } from "@/lib/store";
 import { StudentShell } from "@/components/StudentShell";
-import { AccessPill, Avatar, ProgressBar, SectionTitle } from "@/components/shared";
+import { AccessPill, Avatar, SectionTitle } from "@/components/shared";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -36,11 +28,14 @@ function ProfilePage() {
   const s = currentStudent!;
   const access = accessStatus(s);
   const left = daysLeft(s.endDate);
-  const done = s.completed.length === LESSONS.length;
 
   const rows = [
-    { icon: GraduationCap, label: "Курс", value: "English" },
-    { icon: User2, label: "Тип обучения", value: s.type === "GROUP" ? "Групповой" : "Индивидуальный" },
+    { icon: User2, label: "Курс", value: "English" },
+    {
+      icon: User2,
+      label: "Тип обучения",
+      value: s.type === "GROUP" ? "Групповой" : "Индивидуальный",
+    },
     { icon: CalendarDays, label: "Начало обучения", value: formatFull(s.startDate) },
     { icon: CalendarDays, label: "Окончание доступа", value: formatFull(s.endDate) },
     { icon: Phone, label: "Телефон", value: s.phone },
@@ -70,24 +65,16 @@ function ProfilePage() {
         </div>
       </div>
 
-      <section>
-        <SectionTitle title="Прогресс" icon={GraduationCap} />
-        <div className="surface-card p-5">
-          {done ? (
-            <p className="text-sm font-extrabold text-success">
-              Курс завершён · {LESSONS.length} / {LESSONS.length} уроков
-            </p>
-          ) : (
-            <div className="flex items-end justify-between">
-              <p className="text-sm font-bold">
-                Текущий урок: {currentLessonOrder(s)} из {LESSONS.length}
-              </p>
-              <p className="text-lg font-extrabold text-primary">{progressOf(s)}%</p>
-            </div>
-          )}
-          <ProgressBar value={progressOf(s)} className="mt-3" tone={done ? "success" : "primary"} />
-        </div>
-      </section>
+      <Link
+        to="/journey"
+        className="surface-card flex items-center gap-3 p-4 text-sm font-bold transition hover:bg-muted"
+      >
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+          <Compass className="size-4" />
+        </span>
+        <span className="min-w-0 flex-1">Мой путь и прогресс</span>
+        <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+      </Link>
 
       <section>
         <SectionTitle title="Личные данные" icon={User2} />

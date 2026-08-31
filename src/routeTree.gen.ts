@@ -10,10 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as CourseRouteImport } from './routes/course'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as JourneyRouteImport } from './routes/journey'
+import { Route as LearnRouteImport } from './routes/learn'
+import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as VocabularyRouteImport } from './routes/vocabulary'
 import { Route as CuratorIndexRouteImport } from './routes/curator.index'
 import { Route as CuratorScheduleRouteImport } from './routes/curator.schedule'
@@ -29,24 +30,29 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CourseRoute = CourseRouteImport.update({
-  id: '/course',
-  path: '/course',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JourneyRoute = JourneyRouteImport.update({
+  id: '/journey',
+  path: '/journey',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnRoute = LearnRouteImport.update({
+  id: '/learn',
+  path: '/learn',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PracticeRoute = PracticeRouteImport.update({
+  id: '/practice',
+  path: '/practice',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ScheduleRoute = ScheduleRouteImport.update({
-  id: '/schedule',
-  path: '/schedule',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VocabularyRoute = VocabularyRouteImport.update({
@@ -97,10 +103,11 @@ const LessonOrderTestRoute = LessonOrderTestRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/course': typeof CourseRoute
   '/dashboard': typeof DashboardRoute
+  '/journey': typeof JourneyRoute
+  '/learn': typeof LearnRoute
+  '/practice': typeof PracticeRoute
   '/profile': typeof ProfileRoute
-  '/schedule': typeof ScheduleRoute
   '/vocabulary': typeof VocabularyRoute
   '/curator/schedule': typeof CuratorScheduleRoute
   '/lesson/$order': typeof LessonOrderRoute
@@ -113,10 +120,11 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/course': typeof CourseRoute
   '/dashboard': typeof DashboardRoute
+  '/journey': typeof JourneyRoute
+  '/learn': typeof LearnRoute
+  '/practice': typeof PracticeRoute
   '/profile': typeof ProfileRoute
-  '/schedule': typeof ScheduleRoute
   '/vocabulary': typeof VocabularyRoute
   '/curator/schedule': typeof CuratorScheduleRoute
   '/lesson/$order': typeof LessonOrderRoute
@@ -130,10 +138,11 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/course': typeof CourseRoute
   '/dashboard': typeof DashboardRoute
+  '/journey': typeof JourneyRoute
+  '/learn': typeof LearnRoute
+  '/practice': typeof PracticeRoute
   '/profile': typeof ProfileRoute
-  '/schedule': typeof ScheduleRoute
   '/vocabulary': typeof VocabularyRoute
   '/curator/schedule': typeof CuratorScheduleRoute
   '/lesson/$order': typeof LessonOrderRoute
@@ -148,10 +157,11 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/course'
     | '/dashboard'
+    | '/journey'
+    | '/learn'
+    | '/practice'
     | '/profile'
-    | '/schedule'
     | '/vocabulary'
     | '/curator/schedule'
     | '/lesson/$order'
@@ -164,10 +174,11 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/course'
     | '/dashboard'
+    | '/journey'
+    | '/learn'
+    | '/practice'
     | '/profile'
-    | '/schedule'
     | '/vocabulary'
     | '/curator/schedule'
     | '/lesson/$order'
@@ -180,10 +191,11 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/course'
     | '/dashboard'
+    | '/journey'
+    | '/learn'
+    | '/practice'
     | '/profile'
-    | '/schedule'
     | '/vocabulary'
     | '/curator/schedule'
     | '/lesson/$order'
@@ -197,10 +209,11 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  CourseRoute: typeof CourseRoute
   DashboardRoute: typeof DashboardRoute
+  JourneyRoute: typeof JourneyRoute
+  LearnRoute: typeof LearnRoute
+  PracticeRoute: typeof PracticeRoute
   ProfileRoute: typeof ProfileRoute
-  ScheduleRoute: typeof ScheduleRoute
   VocabularyRoute: typeof VocabularyRoute
   CuratorScheduleRoute: typeof CuratorScheduleRoute
   LessonOrderRoute: typeof LessonOrderRoute
@@ -221,13 +234,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/course': {
-      id: '/course'
-      path: '/course'
-      fullPath: '/course'
-      preLoaderRoute: typeof CourseRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -235,18 +241,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/journey': {
+      id: '/journey'
+      path: '/journey'
+      fullPath: '/journey'
+      preLoaderRoute: typeof JourneyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn': {
+      id: '/learn'
+      path: '/learn'
+      fullPath: '/learn'
+      preLoaderRoute: typeof LearnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/practice': {
+      id: '/practice'
+      path: '/practice'
+      fullPath: '/practice'
+      preLoaderRoute: typeof PracticeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/schedule': {
-      id: '/schedule'
-      path: '/schedule'
-      fullPath: '/schedule'
-      preLoaderRoute: typeof ScheduleRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/vocabulary': {
@@ -317,10 +337,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  CourseRoute: CourseRoute,
   DashboardRoute: DashboardRoute,
+  JourneyRoute: JourneyRoute,
+  LearnRoute: LearnRoute,
+  PracticeRoute: PracticeRoute,
   ProfileRoute: ProfileRoute,
-  ScheduleRoute: ScheduleRoute,
   VocabularyRoute: VocabularyRoute,
   CuratorScheduleRoute: CuratorScheduleRoute,
   LessonOrderRoute: LessonOrderRoute,

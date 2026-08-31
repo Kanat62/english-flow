@@ -1,31 +1,32 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowRight,
-  BookOpen,
-  CalendarClock,
   CheckCircle2,
+  Circle,
   Clock3,
+  Compass,
   PlayCircle,
   Sparkles,
-  Video,
 } from "lucide-react";
 import { TODAY } from "@/lib/mock-data";
 import {
   accessStatus,
   courseLevels,
+  currentLessonOrder,
   daysLeft,
+  dueVocab,
   formatFull,
   levelStatus,
   nextStepFor,
-  progressOf,
   relativeDay,
   stageForLesson,
+  testAvailability,
+  testForLesson,
   useApp,
-  vocabStats,
   type NextStep,
 } from "@/lib/store";
 import { StudentShell } from "@/components/StudentShell";
-import { AccessPill, Pill, ProgressBar, SectionTitle } from "@/components/shared";
+import { AccessPill, SectionTitle } from "@/components/shared";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -50,16 +51,22 @@ function Dashboard() {
   const { currentStudent, meetingsFor, lessons, tests, attempts } = useApp();
   const student = currentStudent!;
   const access = accessStatus(student);
-  const progress = progressOf(student);
   const left = daysLeft(student.endDate);
   const meetings = meetingsFor(student);
   const step = nextStepFor(student, lessons, tests, attempts, meetings);
-  const vocab = vocabStats(student);
+  const due = dueVocab(student);
   const stage = stageForLesson(lessons, Math.max(1, student.openedUpTo));
 
   const upcoming = meetings
     .filter((m) => m.status === "scheduled" && m.date >= TODAY)
     .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))[0];
+  const todayMeeting = meetings.find((m) => m.status === "scheduled" && m.date === TODAY);
+
+  const currentOrder = currentLessonOrder(student);
+  const currentLesson = lessons.find((l) => l.order === currentOrder);
+  const lessonDone = student.completed.includes(currentOrder);
+  const currentTest = testForLesson(tests, currentOrder);
+  const testAvail = currentTest ? testAvailability(student, currentTest, attempts) : null;
 
   return (
     <div className="space-y-6 rise-in">
@@ -94,62 +101,54 @@ function Dashboard() {
         <NextStepCard step={step} />
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section>
-          <SectionTitle title="Практика" icon={CalendarClock} />
-          {upcoming ? (
-            <div className="surface-card p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase tracking-wider text-primary">
-                    {relativeDay(upcoming.date)} · {upcoming.startTime}–{upcoming.endTime}
-                  </p>
-                  <h3 className="mt-1.5 truncate text-lg font-extrabold">{upcoming.title}</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {upcoming.type === "GROUP" ? "Групповое занятие" : "Индивидуальное занятие"} ·
-                    Google Meet
-                  </p>
-                </div>
-                <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
-                  <Video className="size-5" />
-                </div>
-              </div>
-              <a
-                href={upcoming.meetUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl gradient-primary py-3 text-sm font-bold text-primary-foreground shadow-glow transition hover:opacity-95"
-              >
-                Подключиться <ArrowRight className="size-4" />
-              </a>
-            </div>
-          ) : (
-            <div className="surface-card p-5 text-sm text-muted-foreground">
-              Практика пока не назначена. Куратор добавит занятие и ссылку Google Meet.
-            </div>
+      <section>
+        <SectionTitle title="Сегодня" icon={CheckCircle2} />
+        <div className="surface-card divide-y divide-border overflow-hidden">
+          {currentLesson && (
+            <TodayRow
+              done={lessonDone}
+              label={`Урок ${currentLesson.order}. ${currentLesson.title}`}
+              to="/lesson/$order"
+              params={{ order: String(currentLesson.order) }}
+            />
           )}
-        </section>
-
-        <section>
-          <SectionTitle title="Прогресс" icon={CheckCircle2} />
-          <div className="surface-card p-5">
-            <div className="flex items-end justify-between">
-              <div>
-                <p className="text-3xl font-extrabold">
-                  {student.completed.length}
-                  <span className="text-lg text-muted-foreground">/{lessons.length}</span>
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">уроков завершено</p>
-              </div>
-              <p className="text-2xl font-extrabold text-primary">{progress}%</p>
-            </div>
-            <ProgressBar value={progress} className="mt-4 h-2.5" />
-          </div>
-        </section>
-      </div>
+          {currentTest && (
+            <TodayRow
+              done={testAvail === "passed"}
+              active={
+                testAvail === "available" || testAvail === "failed" || testAvail === "in_progress"
+              }
+              label={currentTest.title}
+              to="/lesson/$order/test"
+              params={{ order: String(currentOrder) }}
+            />
+          )}
+          {todayMeeting ? (
+            <TodayRow
+              done={false}
+              active
+              label={`Практика · ${todayMeeting.startTime}`}
+              href={todayMeeting.meetUrl}
+            />
+          ) : upcoming ? (
+            <TodayRow
+              done={false}
+              label={`Практика — ${relativeDay(upcoming.date)} · ${upcoming.startTime}`}
+              to="/practice"
+            />
+          ) : null}
+          {due.length > 0 && (
+            <TodayRow
+              done={false}
+              label={`${due.length} ${due.length === 1 ? "слово" : "слов"} на повторение`}
+              to="/vocabulary"
+            />
+          )}
+        </div>
+      </section>
 
       <section>
-        <SectionTitle title="Твой путь" icon={BookOpen} />
+        <SectionTitle title="Твой путь" icon={Compass} />
         <div className="surface-card p-5">
           <div className="flex flex-wrap items-center gap-2">
             {courseLevels().map((level, i, arr) => {
@@ -182,35 +181,75 @@ function Dashboard() {
             </p>
           )}
           <Link
-            to="/course"
+            to="/journey"
             className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-primary"
           >
-            Весь курс <ArrowRight className="size-4" />
+            Мой путь <ArrowRight className="size-4" />
           </Link>
         </div>
       </section>
-
-      {vocab.review > 0 && (
-        <section>
-          <SectionTitle title="Слова на повторение" icon={Sparkles} />
-          <div className="surface-card flex items-center justify-between gap-3 p-5">
-            <div>
-              <p className="text-2xl font-extrabold">{vocab.review}</p>
-              <p className="text-xs text-muted-foreground">
-                {vocab.review === 1 ? "слово ждёт повторения" : "слов ждут повторения"}
-              </p>
-            </div>
-            <Link
-              to="/vocabulary"
-              className="rounded-xl gradient-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-glow"
-            >
-              Повторить
-            </Link>
-          </div>
-        </section>
-      )}
     </div>
   );
+}
+
+function TodayRow({
+  done,
+  active,
+  label,
+  to,
+  params,
+  href,
+}: {
+  done: boolean;
+  active?: boolean;
+  label: string;
+  to?: "/lesson/$order" | "/lesson/$order/test" | "/practice" | "/vocabulary";
+  params?: { order: string };
+  href?: string;
+}) {
+  const icon = done ? (
+    <CheckCircle2 className="size-4 text-success" />
+  ) : active ? (
+    <ArrowRight className="size-4 text-primary" />
+  ) : (
+    <Circle className="size-4 text-muted-foreground" />
+  );
+
+  const content = (
+    <>
+      {icon}
+      <span
+        className={`min-w-0 flex-1 truncate text-sm ${done ? "text-muted-foreground line-through" : "font-semibold"}`}
+      >
+        {label}
+      </span>
+    </>
+  );
+
+  const className = "flex items-center gap-3 px-4 py-3.5 transition hover:bg-muted/60";
+
+  if (href) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer" className={className}>
+        {content}
+      </a>
+    );
+  }
+  if (to === "/lesson/$order" || to === "/lesson/$order/test") {
+    return (
+      <Link to={to} params={params!} className={className}>
+        {content}
+      </Link>
+    );
+  }
+  if (to) {
+    return (
+      <Link to={to} className={className}>
+        {content}
+      </Link>
+    );
+  }
+  return <div className={className}>{content}</div>;
 }
 
 function NextStepCard({ step }: { step: NextStep }) {
