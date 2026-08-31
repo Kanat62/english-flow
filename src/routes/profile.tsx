@@ -1,11 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CalendarDays, CheckCircle2, Compass, Phone, Target, User2 } from "lucide-react";
+import { CalendarDays, Phone, Target, User2 } from "lucide-react";
 import {
   accessStatus,
-  courseLevels,
   daysLeft,
   formatFull,
-  levelStatus,
   practiceStats,
   progressOf,
   testsStats,
@@ -79,42 +77,6 @@ function ProfilePage() {
           </div>
         </div>
       </div>
-
-      <section>
-        <SectionTitle title="Твой путь" icon={Compass} />
-        <div className="surface-card p-5">
-          <div className="flex flex-wrap items-center gap-2">
-            {courseLevels().map((level, i, arr) => {
-              const status = levelStatus(s, lessons, level);
-              return (
-                <div key={level} className="flex items-center gap-2">
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-extrabold ${
-                      status === "completed"
-                        ? "bg-success-soft text-success"
-                        : status === "current"
-                          ? "gradient-primary text-primary-foreground shadow-glow"
-                          : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {level}
-                    {status === "completed" && <CheckCircle2 className="size-3.5" />}
-                  </span>
-                  {i < arr.length - 1 && <span className="text-muted-foreground">—</span>}
-                </div>
-              );
-            })}
-          </div>
-          <p className="mt-4 text-sm text-muted-foreground">
-            Текущий уровень:{" "}
-            <span className="font-bold text-foreground">
-              {courseLevels().find((l) => levelStatus(s, lessons, l) === "current") ??
-                courseLevels()[0]}
-            </span>
-            . Ты сейчас здесь.
-          </p>
-        </div>
-      </section>
 
       <section>
         <SectionTitle title="Цель" icon={Target} />
