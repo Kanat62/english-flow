@@ -1,14 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { CalendarDays, Phone, Target, User2 } from "lucide-react";
-import {
-  accessStatus,
-  daysLeft,
-  formatFull,
-  practiceStats,
-  testsStats,
-  useApp,
-  vocabStats,
-} from "@/lib/store";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { CalendarDays, LogOut, Phone, Target, User2 } from "lucide-react";
+import { accessStatus, daysLeft, formatFull, practiceStats, testsStats, useApp } from "@/lib/store";
 import { StudentShell } from "@/components/StudentShell";
 import { AccessPill, Avatar, SectionTitle } from "@/components/shared";
 
@@ -32,11 +24,11 @@ export const Route = createFileRoute("/profile")({
 });
 
 function ProfilePage() {
-  const { currentStudent, lessons, tests, attempts, meetingsFor } = useApp();
+  const { currentStudent, lessons, tests, attempts, meetingsFor, logout } = useApp();
+  const navigate = useNavigate();
   const s = currentStudent!;
   const access = accessStatus(s);
   const left = daysLeft(s.endDate);
-  const vocab = vocabStats(s);
   const testStats = testsStats(s, tests, attempts);
   const practice = practiceStats(meetingsFor(s));
 
@@ -55,24 +47,22 @@ function ProfilePage() {
 
   return (
     <div className="space-y-6 rise-in">
-      <div className="surface-card overflow-hidden">
-        <div className="gradient-hero h-24" />
-        <div className="-mt-9 flex flex-col items-center px-5 pb-6 text-center">
-          <div className="rounded-full border-4 border-surface">
-            <Avatar name={`${s.firstName} ${s.lastName}`} tone={s.avatarTone} size="lg" />
-          </div>
-          <h1 className="mt-3 text-xl font-extrabold">
+      <div className="surface-card flex items-center gap-4 p-4">
+        <Avatar name={`${s.firstName} ${s.lastName}`} tone={s.avatarTone} size="lg" />
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-lg font-extrabold">
             {s.firstName} {s.lastName}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {s.type === "GROUP" ? "Group" : "Individual"}
+          <p className="mt-0.5 flex items-center gap-1.5 truncate text-sm text-muted-foreground">
+            <User2 className="size-3.5 shrink-0" />
+            {s.type === "GROUP" ? "Групповой курс" : "Индивидуальный курс"}
           </p>
-          <div className="mt-3 flex items-center gap-2">
-            <AccessPill status={access} />
-            <span className="text-xs font-semibold text-muted-foreground">
-              {access === "active" ? `Осталось ${left} дн.` : formatFull(s.endDate)}
-            </span>
-          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <AccessPill status={access} />
+          <span className="text-[11px] font-semibold text-muted-foreground">
+            {access === "active" ? `Осталось ${left} дн.` : formatFull(s.endDate)}
+          </span>
         </div>
       </div>
 
@@ -89,7 +79,6 @@ function ProfilePage() {
           {[
             { label: "Уроки", value: `${s.completed.length} / ${lessons.length}` },
             { label: "Тесты", value: `${testStats.passed} / ${testStats.total}` },
-            { label: "Слова", value: `${vocab.mastered}` },
             {
               label: "Практика",
               value:
@@ -120,6 +109,16 @@ function ProfilePage() {
           ))}
         </div>
       </section>
+
+      <button
+        onClick={() => {
+          logout();
+          navigate({ to: "/" });
+        }}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 py-3 text-sm font-semibold text-red-500 transition hover:bg-red-500/20"
+      >
+        <LogOut className="size-4" /> Выйти
+      </button>
     </div>
   );
 }

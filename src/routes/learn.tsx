@@ -1,20 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, CheckCircle2, Clock3, Lock, PlayCircle, Search, FileText } from "lucide-react";
+import { CheckCircle2, Clock3, Lock, PlayCircle, Search, FileText } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
-  courseLevels,
   currentLessonOrder,
   lessonState,
-  levelStatus,
   progressOf,
   stageForBlock,
-  stageForLesson,
   testAvailability,
   testForLesson,
   useApp,
 } from "@/lib/store";
 import { StudentShell } from "@/components/StudentShell";
-import { EmptyState, LessonPill, Pill, ProgressBar } from "@/components/shared";
+import { EmptyState, LessonPill, Pill } from "@/components/shared";
 import type { LessonTest, Student, TestAttempt } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/learn")({
@@ -40,7 +37,6 @@ const filters = [
   { id: "all", label: "Все" },
   { id: "available", label: "Доступные" },
   { id: "completed", label: "Завершённые" },
-  { id: "locked", label: "Закрытые" },
 ] as const;
 
 function CoursePage() {
@@ -68,8 +64,6 @@ function CoursePage() {
     return [...map.entries()];
   }, [list]);
 
-  const stage = stageForLesson(lessons, Math.max(1, student.openedUpTo));
-
   return (
     <div className="space-y-6 rise-in">
       <header>
@@ -77,42 +71,9 @@ function CoursePage() {
         <p className="mt-1 text-sm text-muted-foreground">
           {student.completed.length} из {lessons.length} уроков завершено · {progressOf(student)}%
         </p>
-
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {courseLevels().map((level, i, arr) => {
-            const status = levelStatus(student, lessons, level);
-            return (
-              <div key={level} className="flex items-center gap-2">
-                <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-extrabold ${
-                    status === "completed"
-                      ? "bg-success-soft text-success"
-                      : status === "current"
-                        ? "gradient-primary text-primary-foreground shadow-glow"
-                        : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {level}
-                  {status === "completed" && <CheckCircle2 className="size-3.5" />}
-                </span>
-                {i < arr.length - 1 && (
-                  <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
-                )}
-              </div>
-            );
-          })}
-        </div>
-        {stage && (
-          <p className="mt-2.5 text-xs text-muted-foreground">
-            Текущий этап: <span className="font-bold text-foreground">{stage.level}</span> ·{" "}
-            {stage.title}
-          </p>
-        )}
-
-        <ProgressBar value={progressOf(student)} className="mt-4" />
       </header>
 
-      <div className="sticky top-[57px] z-10 -mx-4 space-y-3 bg-background/90 px-4 py-3 backdrop-blur lg:top-0 lg:mx-0 lg:px-0">
+      <div className="space-y-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -129,7 +90,7 @@ function CoursePage() {
               onClick={() => setFilter(f.id)}
               className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${
                 filter === f.id
-                  ? "gradient-primary text-primary-foreground shadow-glow"
+                  ? "gradient-primary text-primary-foreground"
                   : "border border-border bg-surface text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -271,7 +232,7 @@ function TestRow({
 
   const content = (
     <>
-      <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${badgeClass}`}>
+      <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${badgeClass}`}>
         {icon}
       </span>
       <span className="min-w-0 flex-1">
@@ -285,7 +246,7 @@ function TestRow({
   );
 
   const rowClass =
-    "flex items-center gap-3 border-t border-dashed border-border/70 px-4 py-2.5 pl-[52px] transition";
+    "flex items-center gap-3 border-t border-dashed border-border/70 px-4 py-2.5 transition";
 
   if (locked) {
     return <div className={`${rowClass} cursor-not-allowed opacity-70`}>{content}</div>;

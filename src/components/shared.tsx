@@ -12,11 +12,24 @@ export function Logo({ compact = false }: { compact?: boolean }) {
       />
       {!compact && (
         <div className="leading-tight">
-          <p className="text-sm font-extrabold tracking-tight">Sozmor</p>
+          <p className="text-sm font-extrabold tracking-tight">Sozmor Academy</p>
           <p className="text-[11px] font-medium text-muted-foreground">Learning Platform</p>
         </div>
       )}
     </div>
+  );
+}
+
+export function CoinIcon({ className }: { className?: string }) {
+  return <img src="/coin.png" alt="" aria-hidden="true" className={className} />;
+}
+
+export function Balance({ amount = 0 }: { amount?: number }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1.5 text-sm font-bold text-foreground">
+      {amount}
+      <CoinIcon className="size-5 shrink-0" />
+    </span>
   );
 }
 

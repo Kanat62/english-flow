@@ -14,7 +14,6 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LearnRouteImport } from './routes/learn'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as VocabularyRouteImport } from './routes/vocabulary'
 import { Route as CuratorIndexRouteImport } from './routes/curator.index'
 import { Route as CuratorScheduleRouteImport } from './routes/curator.schedule'
 import { Route as LessonOrderRouteImport } from './routes/lesson.$order'
@@ -47,11 +46,6 @@ const PracticeRoute = PracticeRouteImport.update({
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const VocabularyRoute = VocabularyRouteImport.update({
-  id: '/vocabulary',
-  path: '/vocabulary',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CuratorIndexRoute = CuratorIndexRouteImport.update({
@@ -101,7 +95,6 @@ export interface FileRoutesByFullPath {
   '/learn': typeof LearnRoute
   '/practice': typeof PracticeRoute
   '/profile': typeof ProfileRoute
-  '/vocabulary': typeof VocabularyRoute
   '/curator/schedule': typeof CuratorScheduleRoute
   '/lesson/$order': typeof LessonOrderRoute
   '/curator/': typeof CuratorIndexRoute
@@ -117,7 +110,6 @@ export interface FileRoutesByTo {
   '/learn': typeof LearnRoute
   '/practice': typeof PracticeRoute
   '/profile': typeof ProfileRoute
-  '/vocabulary': typeof VocabularyRoute
   '/curator/schedule': typeof CuratorScheduleRoute
   '/lesson/$order': typeof LessonOrderRoute
   '/curator': typeof CuratorIndexRoute
@@ -134,7 +126,6 @@ export interface FileRoutesById {
   '/learn': typeof LearnRoute
   '/practice': typeof PracticeRoute
   '/profile': typeof ProfileRoute
-  '/vocabulary': typeof VocabularyRoute
   '/curator/schedule': typeof CuratorScheduleRoute
   '/lesson/$order': typeof LessonOrderRoute
   '/curator/': typeof CuratorIndexRoute
@@ -152,7 +143,6 @@ export interface FileRouteTypes {
     | '/learn'
     | '/practice'
     | '/profile'
-    | '/vocabulary'
     | '/curator/schedule'
     | '/lesson/$order'
     | '/curator/'
@@ -168,7 +158,6 @@ export interface FileRouteTypes {
     | '/learn'
     | '/practice'
     | '/profile'
-    | '/vocabulary'
     | '/curator/schedule'
     | '/lesson/$order'
     | '/curator'
@@ -184,7 +173,6 @@ export interface FileRouteTypes {
     | '/learn'
     | '/practice'
     | '/profile'
-    | '/vocabulary'
     | '/curator/schedule'
     | '/lesson/$order'
     | '/curator/'
@@ -201,7 +189,6 @@ export interface RootRouteChildren {
   LearnRoute: typeof LearnRoute
   PracticeRoute: typeof PracticeRoute
   ProfileRoute: typeof ProfileRoute
-  VocabularyRoute: typeof VocabularyRoute
   CuratorScheduleRoute: typeof CuratorScheduleRoute
   LessonOrderRoute: typeof LessonOrderRoute
   CuratorIndexRoute: typeof CuratorIndexRoute
@@ -247,13 +234,6 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vocabulary': {
-      id: '/vocabulary'
-      path: '/vocabulary'
-      fullPath: '/vocabulary'
-      preLoaderRoute: typeof VocabularyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/curator/': {
@@ -321,7 +301,6 @@ const rootRouteChildren: RootRouteChildren = {
   LearnRoute: LearnRoute,
   PracticeRoute: PracticeRoute,
   ProfileRoute: ProfileRoute,
-  VocabularyRoute: VocabularyRoute,
   CuratorScheduleRoute: CuratorScheduleRoute,
   LessonOrderRoute: LessonOrderRoute,
   CuratorIndexRoute: CuratorIndexRoute,

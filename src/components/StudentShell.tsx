@@ -1,14 +1,14 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { BookOpen, Home, LogOut, User, Video } from "lucide-react";
+import { BookOpen, CalendarClock, Home, LogOut, User } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/lib/store";
-import { Avatar, Logo } from "./shared";
+import { Avatar, Balance, Logo } from "./shared";
 
 const nav = [
   { to: "/dashboard", label: "Главная", icon: Home },
-  { to: "/learn", label: "Учёба", icon: BookOpen },
-  { to: "/practice", label: "Практика", icon: Video },
+  { to: "/learn", label: "Курс", icon: BookOpen },
+  { to: "/practice", label: "Расписание", icon: CalendarClock },
   { to: "/profile", label: "Профиль", icon: User },
 ] as const;
 
@@ -76,23 +76,16 @@ export function StudentShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile header */}
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-surface/85 px-4 py-3 backdrop-blur lg:hidden">
-        <Logo />
-        <div className="flex items-center gap-2">
-          <Avatar name={fullName} tone={currentStudent.avatarTone} size="sm" />
-          <button
-            onClick={() => {
-              logout();
-              navigate({ to: "/" });
-            }}
-            aria-label="Выйти"
-            className="grid size-9 place-items-center rounded-xl border border-border text-muted-foreground"
-          >
-            <LogOut className="size-4" />
-          </button>
-        </div>
-      </header>
+      {/* Mobile header — main page only, not fixed/sticky */}
+      {pathname === "/dashboard" && (
+        <header className="flex items-center justify-between border-b border-border bg-surface/85 px-4 py-3 lg:hidden">
+          <Logo />
+          <div className="flex items-center gap-2.5">
+            <Balance amount={0} />
+            <Avatar name={fullName} tone={currentStudent.avatarTone} size="sm" />
+          </div>
+        </header>
+      )}
 
       <main className="mx-auto w-full max-w-5xl px-4 pb-28 pt-5 lg:pl-64 lg:pr-6 lg:pt-8 lg:pb-12">
         <div className="lg:max-w-4xl">{children}</div>

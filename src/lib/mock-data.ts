@@ -94,8 +94,8 @@ export interface Student {
   status: AccessStatus;
   openedUpTo: number; // максимальный открытый урок (order)
   completed: number[]; // завершённые уроки
+  completedAt: Record<number, string>; // order -> дата завершения (YYYY-MM-DD)
   watched: Record<number, number>; // order -> % просмотра видео (0-100)
-  knownWords: string[]; // id слов, отмеченных «Знаю»
   lastActivity: string;
   avatarTone: string;
 }
@@ -187,55 +187,6 @@ export const COURSE_STAGES: CourseStage[] = [
   { block: "Speaking", level: "B2", month: 6, title: "Speaking & Fluency" },
 ];
 
-export interface VocabWord {
-  id: string;
-  lessonOrder: number;
-  term: string;
-  translation: string;
-  example: string;
-}
-
-export const VOCAB_WORDS: VocabWord[] = [
-  {
-    id: "v1",
-    lessonOrder: 1,
-    term: "Hello",
-    translation: "Привет",
-    example: "Hello! How are you?",
-  },
-  { id: "v2", lessonOrder: 1, term: "Name", translation: "Имя", example: "My name is Anna." },
-  { id: "v3", lessonOrder: 1, term: "Morning", translation: "Утро", example: "Good morning!" },
-  { id: "v4", lessonOrder: 1, term: "Evening", translation: "Вечер", example: "Good evening!" },
-  {
-    id: "v5",
-    lessonOrder: 1,
-    term: "Please",
-    translation: "Пожалуйста",
-    example: "Coffee, please.",
-  },
-  {
-    id: "v6",
-    lessonOrder: 1,
-    term: "Thank you",
-    translation: "Спасибо",
-    example: "Thank you very much.",
-  },
-  {
-    id: "v7",
-    lessonOrder: 1,
-    term: "Meet",
-    translation: "Встречать",
-    example: "Nice to meet you.",
-  },
-  {
-    id: "v8",
-    lessonOrder: 1,
-    term: "Alphabet",
-    translation: "Алфавит",
-    example: "Let's learn the alphabet.",
-  },
-];
-
 export const COURSE = {
   id: "course-en",
   name: "English",
@@ -260,8 +211,8 @@ export const STUDENTS: Student[] = [
     status: "active",
     openedUpTo: 1,
     completed: [],
+    completedAt: {},
     watched: {},
-    knownWords: [],
     lastActivity: "2026-08-18",
     avatarTone: "var(--tone-1)",
   },
@@ -278,8 +229,8 @@ export const STUDENTS: Student[] = [
     status: "active",
     openedUpTo: 1,
     completed: [],
+    completedAt: {},
     watched: {},
-    knownWords: [],
     lastActivity: "2026-08-17",
     avatarTone: "var(--tone-2)",
   },
@@ -296,8 +247,8 @@ export const STUDENTS: Student[] = [
     status: "active",
     openedUpTo: 1,
     completed: [],
+    completedAt: {},
     watched: {},
-    knownWords: [],
     lastActivity: "2026-08-18",
     avatarTone: "var(--tone-3)",
   },
@@ -314,8 +265,8 @@ export const STUDENTS: Student[] = [
     status: "expired",
     openedUpTo: 1,
     completed: [],
+    completedAt: {},
     watched: {},
-    knownWords: [],
     lastActivity: "2026-08-09",
     avatarTone: "var(--tone-4)",
   },
@@ -332,8 +283,8 @@ export const STUDENTS: Student[] = [
     status: "disabled",
     openedUpTo: 1,
     completed: [],
+    completedAt: {},
     watched: {},
-    knownWords: [],
     lastActivity: "2026-08-14",
     avatarTone: "var(--tone-5)",
   },

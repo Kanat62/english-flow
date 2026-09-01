@@ -234,8 +234,8 @@ function CreateStudentModal({
       status: "active",
       openedUpTo: 1,
       completed: [],
+      completedAt: {},
       watched: {},
-      knownWords: [],
       lastActivity: TODAY,
       avatarTone: "var(--tone-3)",
     });

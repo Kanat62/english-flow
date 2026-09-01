@@ -17,7 +17,6 @@ import {
   TESTS,
   TEST_ATTEMPTS,
   TODAY,
-  VOCAB_WORDS,
   type AccessStatus,
   type CefrLevel,
   type CourseStage,
@@ -31,7 +30,6 @@ import {
   type Role,
   type Student,
   type TestAttempt,
-  type VocabWord,
 } from "./mock-data";
 
 interface Session {
@@ -65,8 +63,8 @@ function normalizeStudent(s: Student): Student {
   return {
     ...s,
     completed: s.completed ?? [],
+    completedAt: s.completedAt ?? {},
     watched: s.watched ?? {},
-    knownWords: s.knownWords ?? [],
   };
 }
 
@@ -123,7 +121,6 @@ interface Ctx extends AppState {
   startAttempt: (studentId: string, testId: string) => TestAttempt | null;
   saveAnswer: (attemptId: string, questionId: string, optionIds: string[]) => void;
   submitAttempt: (attemptId: string) => void;
-  setWordKnown: (studentId: string, wordId: string, known: boolean) => void;
 }
 
 const AppContext = createContext<Ctx | null>(null);
@@ -203,6 +200,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               ? {
                   ...st,
                   completed: [...(st.completed ?? []), order],
+                  completedAt: { ...(st.completedAt ?? {}), [order]: TODAY },
                   watched: { ...(st.watched ?? {}), [order]: 100 },
                   lastActivity: TODAY,
                 }
@@ -452,17 +450,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
             };
           }),
         })),
-      setWordKnown: (studentId, wordId, known) =>
-        setState((p) => ({
-          ...p,
-          students: p.students.map((st) => {
-            if (st.id !== studentId) return st;
-            const set = new Set(st.knownWords);
-            if (known) set.add(wordId);
-            else set.delete(wordId);
-            return { ...st, knownWords: [...set] };
-          }),
-        })),
     };
   }, [state, ready, login, logout, updateStudent, testVideoUrl]);
 
@@ -575,30 +562,6 @@ export function levelStatus(student: Student, lessons: Lesson[], level: CefrLeve
   return "locked";
 }
 
-export function vocabForLesson(order: number): VocabWord[] {
-  return VOCAB_WORDS.filter((w) => w.lessonOrder === order);
-}
-
-export function accessibleVocab(student: Student): VocabWord[] {
-  return VOCAB_WORDS.filter((w) => w.lessonOrder <= student.openedUpTo);
-}
-
-export function dueVocab(student: Student): VocabWord[] {
-  return accessibleVocab(student).filter((w) => !student.knownWords.includes(w.id));
-}
-
-export function vocabStats(student: Student) {
-  const today = vocabForLesson(currentLessonOrder(student)).filter(
-    (w) => !student.knownWords.includes(w.id),
-  );
-  return {
-    today: today.length,
-    review: dueVocab(student).length,
-    mastered: student.knownWords.length,
-    total: accessibleVocab(student).length,
-  };
-}
-
 export function practiceStats(meetings: Meeting[]) {
   const finished = meetings.filter((m) => m.status !== "scheduled");
   const attended = finished.filter((m) => m.status === "completed").length;
@@ -617,7 +580,6 @@ export type NextStep =
   | { kind: "lesson"; lesson: Lesson }
   | { kind: "test"; lesson: Lesson; test: LessonTest }
   | { kind: "practice"; meeting: Meeting }
-  | { kind: "vocab"; count: number }
   | { kind: "done"; nextMeeting?: Meeting };
 
 export function nextStepFor(
@@ -651,9 +613,6 @@ export function nextStepFor(
 
   const todayMeeting = meetings.find((m) => m.status === "scheduled" && m.date === TODAY);
   if (todayMeeting) return { kind: "practice", meeting: todayMeeting };
-
-  const due = dueVocab(student);
-  if (due.length > 0) return { kind: "vocab", count: due.length };
 
   const nextMeeting = meetings
     .filter((m) => m.status === "scheduled" && m.date >= TODAY)
@@ -725,4 +684,270 @@ export function addMonths(iso: string, months: number) {
   const d = new Date(iso);
   d.setMonth(d.getMonth() + months);
   return d.toISOString().slice(0, 10);
+}
+
+const WEEKDAYS_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+
+export function weekdayShort(iso: string) {
+  const d = new Date(iso);
+  return WEEKDAYS_SHORT[(d.getDay() + 6) % 7];
+}
+
+/** Даты понедельника–воскресенья недели, в которую входит anchor. */
+export function weekRangeOf(anchor: string): string[] {
+  const d = new Date(anchor);
+  const mondayOffset = (d.getDay() + 6) % 7;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - mondayOffset);
+  return Array.from({ length: 7 }, (_, i) => {
+    const dt = new Date(monday);
+    dt.setDate(monday.getDate() + i);
+    return dt.toISOString().slice(0, 10);
+  });
+}
+
+export function shiftWeek(anchor: string, weeks: number) {
+  const d = new Date(anchor);
+  d.setDate(d.getDate() + weeks * 7);
+  return d.toISOString().slice(0, 10);
+}
+
+export type DayItemKind = "lesson" | "test" | "practice";
+export type DayItemStatus = "done" | "missed" | "scheduled" | "cancelled";
+
+export interface DayAgendaItem {
+  kind: DayItemKind;
+  status: DayItemStatus;
+  title: string;
+  subtitle: string;
+  time?: string;
+  meetUrl?: string;
+  lessonOrder: number;
+}
+
+/** Реальные учебные события конкретного дня: завершённые уроки, сданные тесты, практики. */
+export function dayAgenda(
+  student: Student,
+  lessons: Lesson[],
+  tests: LessonTest[],
+  attempts: TestAttempt[],
+  meetings: Meeting[],
+  date: string,
+): DayAgendaItem[] {
+  const items: DayAgendaItem[] = [];
+
+  for (const [orderStr, completedDate] of Object.entries(student.completedAt ?? {})) {
+    if (completedDate !== date) continue;
+    const lesson = lessons.find((l) => l.order === Number(orderStr));
+    if (lesson) {
+      items.push({
+        kind: "lesson",
+        status: "done",
+        title: `Урок ${lesson.order}. ${lesson.title}`,
+        subtitle: "Теория пройдена",
+        lessonOrder: lesson.order,
+      });
+    }
+  }
+
+  attempts
+    .filter(
+      (a) =>
+        a.studentId === student.id &&
+        a.status === "submitted" &&
+        a.submittedAt?.slice(0, 10) === date,
+    )
+    .forEach((a) => {
+      const test = tests.find((t) => t.id === a.testId);
+      if (!test) return;
+      items.push({
+        kind: "test",
+        status: "done",
+        title: test.title,
+        subtitle: `${a.score}% · ${a.passed ? "пройден" : "не пройден"}`,
+        lessonOrder: test.lessonOrder,
+      });
+    });
+
+  meetings
+    .filter(
+      (m) =>
+        m.date === date &&
+        (student.type === "GROUP" ? m.studentId === "group" : m.studentId === student.id),
+    )
+    .forEach((m) => {
+      items.push({
+        kind: "practice",
+        status:
+          m.status === "completed" ? "done" : m.status === "cancelled" ? "cancelled" : "scheduled",
+        title: m.title,
+        subtitle: `${m.startTime}–${m.endTime}`,
+        time: m.startTime,
+        meetUrl: m.meetUrl,
+        lessonOrder: m.lessonOrder,
+      });
+    });
+
+  return items.sort((a, b) => (a.time ?? "00:00").localeCompare(b.time ?? "00:00"));
+}
+
+export interface WeekDayAgenda {
+  date: string;
+  items: DayAgendaItem[];
+}
+
+export function weekAgenda(
+  student: Student,
+  lessons: Lesson[],
+  tests: LessonTest[],
+  attempts: TestAttempt[],
+  meetings: Meeting[],
+  week: string[],
+): WeekDayAgenda[] {
+  return week.map((date) => ({
+    date,
+    items: dayAgenda(student, lessons, tests, attempts, meetings, date),
+  }));
+}
+
+const WEEKDAYS_FULL = [
+  "Понедельник",
+  "Вторник",
+  "Среда",
+  "Четверг",
+  "Пятница",
+  "Суббота",
+  "Воскресенье",
+];
+
+export function weekdayFull(iso: string) {
+  const d = new Date(iso);
+  return WEEKDAYS_FULL[(d.getDay() + 6) % 7] ?? "";
+}
+
+export type WeekPlanKind = "theory" | "practice" | "rest";
+export type WeekPlanStatus = "done" | "past" | "today" | "upcoming" | "locked" | "rest";
+
+export interface WeekPlanDay {
+  date: string;
+  weekday: string;
+  kind: WeekPlanKind;
+  status: WeekPlanStatus;
+  title: string;
+  topic: string;
+  meta: string;
+  meetUrl?: string;
+  lessonOrder?: number;
+}
+
+/** Недельный ритм курса: теория и практика чередуются по дням, вс — выходной. */
+const PLAN_RHYTHM: { kind: WeekPlanKind; offset: number }[] = [
+  { kind: "theory", offset: 0 },
+  { kind: "practice", offset: 0 },
+  { kind: "theory", offset: 1 },
+  { kind: "practice", offset: 1 },
+  { kind: "theory", offset: 2 },
+  { kind: "practice", offset: 2 },
+  { kind: "rest", offset: 0 },
+];
+
+const PLAN_LABEL: Record<WeekPlanKind, string> = {
+  theory: "Теория",
+  practice: "Практика",
+  rest: "Выходной",
+};
+
+/**
+ * План обучения на неделю (7 карточек, пн–вс). Ритм курса накладывается на реальные
+ * практики из расписания: где есть встреча — берём её время и ссылку Google Meet.
+ */
+export function weekPlan(
+  student: Student,
+  lessons: Lesson[],
+  tests: LessonTest[],
+  attempts: TestAttempt[],
+  meetings: Meeting[],
+  week: string[],
+  today = TODAY,
+): WeekPlanDay[] {
+  const currentOrder = currentLessonOrder(student);
+  const lessonAt = (offset: number) =>
+    lessons.find((l) => l.order === currentOrder + offset) ??
+    lessons.find((l) => l.order === currentOrder);
+  const groupRoom = meetings.find((m) => m.meetUrl)?.meetUrl;
+
+  return week.map((date, i) => {
+    const slot = PLAN_RHYTHM[i % PLAN_RHYTHM.length] ?? PLAN_RHYTHM[0]!;
+    const lesson = lessonAt(slot.offset);
+    const topic = lesson?.title ?? "английский";
+    const meeting = meetings.find((m) => m.date === date);
+    const isRest = slot.kind === "rest";
+
+    let status: WeekPlanStatus;
+    if (isRest) {
+      status = "rest";
+    } else if (date < today) {
+      status =
+        dayAgenda(student, lessons, tests, attempts, meetings, date).length > 0 ? "done" : "past";
+    } else if (date === today) {
+      status = "today";
+    } else {
+      status = "locked";
+    }
+
+    const meta = isRest
+      ? "Отдыхай и возвращайся с новыми силами"
+      : slot.kind === "practice"
+        ? meeting
+          ? `${meeting.startTime}–${meeting.endTime} · групповая`
+          : "21:00–22:00 · групповая"
+        : `Видео · ${lesson ? parseInt(lesson.duration, 10) : 12} мин`;
+
+    const room = slot.kind === "practice" ? (meeting?.meetUrl ?? groupRoom) : undefined;
+
+    return {
+      date,
+      weekday: weekdayFull(date),
+      kind: slot.kind,
+      status,
+      title: isRest ? "Выходной" : `${PLAN_LABEL[slot.kind]} · ${topic}`,
+      topic,
+      meta,
+      ...(room ? { meetUrl: room } : {}),
+      ...(!isRest && lesson ? { lessonOrder: lesson.order } : {}),
+    };
+  });
+}
+
+/** Даты, в которые ученик сделал хотя бы одно учебное действие. */
+export function activityDatesFor(
+  student: Student,
+  attempts: TestAttempt[],
+  meetings: Meeting[],
+): Set<string> {
+  const dates = new Set<string>();
+  Object.values(student.completedAt ?? {}).forEach((d) => dates.add(d));
+  attempts
+    .filter((a) => a.studentId === student.id && a.status === "submitted" && a.submittedAt)
+    .forEach((a) => dates.add(a.submittedAt!.slice(0, 10)));
+  meetings
+    .filter(
+      (m) =>
+        m.status === "completed" &&
+        (student.type === "GROUP" ? m.studentId === "group" : m.studentId === student.id),
+    )
+    .forEach((m) => dates.add(m.date));
+  return dates;
+}
+
+/** Число дней подряд (по TODAY назад) с хотя бы одним учебным действием. */
+export function streakDays(dates: Set<string>, today = TODAY): number {
+  let count = 0;
+  const cursor = new Date(today);
+  if (!dates.has(today)) cursor.setDate(cursor.getDate() - 1);
+  while (dates.has(cursor.toISOString().slice(0, 10))) {
+    count++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return count;
 }

@@ -1,121 +1,222 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { CalendarClock, Sparkles, Video } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { BookOpen, Coffee, FileText, PlayCircle, Video } from "lucide-react";
 import { TODAY } from "@/lib/mock-data";
-import { dueVocab, formatDate, relativeDay, useApp } from "@/lib/store";
+import {
+  formatDate,
+  useApp,
+  weekdayShort,
+  weekPlan,
+  weekRangeOf,
+  type WeekPlanDay,
+  type WeekPlanKind,
+  type WeekPlanStatus,
+} from "@/lib/store";
+import { cn } from "@/lib/utils";
 import { StudentShell } from "@/components/StudentShell";
-import { EmptyState, MeetingPill } from "@/components/shared";
 
 export const Route = createFileRoute("/practice")({
   head: () => ({
     meta: [
-      { title: "Практика — Sozmor" },
+      { title: "Расписание — Sozmor" },
       {
         name: "description",
-        content: "Ближайшее занятие в Google Meet и история практик.",
+        content: "План обучения на неделю: теория, тест и живая практика по дням.",
       },
     ],
   }),
   component: () => (
     <StudentShell>
-      <PracticePage />
+      <SchedulePage />
     </StudentShell>
   ),
 });
 
-function PracticePage() {
-  const { currentStudent, meetingsFor, lessons } = useApp();
+const kindIcon: Record<WeekPlanKind, React.ComponentType<{ className?: string }>> = {
+  theory: BookOpen,
+  practice: Video,
+  rest: Coffee,
+};
+
+const statusLabel: Record<WeekPlanStatus, string> = {
+  done: "Пройдено",
+  past: "Позади",
+  today: "Сейчас",
+  upcoming: "Закрыт",
+  locked: "Закрыт",
+  rest: "Выходной",
+};
+
+function SchedulePage() {
+  const { currentStudent, meetingsFor, lessons, tests, attempts } = useApp();
   const student = currentStudent!;
-  const meetings = meetingsFor(student);
-  const due = dueVocab(student);
-
-  const upcoming = meetings
-    .filter((m) => m.status === "scheduled" && m.date >= TODAY)
-    .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))[0];
-
-  const history = meetings
-    .filter((m) => m.status !== "scheduled" || m.date < TODAY)
-    .sort((a, b) => (b.date + b.startTime).localeCompare(a.date + a.startTime));
-
-  const topicOf = (lessonOrder: number) =>
-    lessons.find((l) => l.order === lessonOrder)?.title ?? "";
+  const week = weekRangeOf(TODAY);
+  const days = weekPlan(student, lessons, tests, attempts, meetingsFor(student), week);
 
   return (
     <div className="space-y-6 rise-in">
       <header>
-        <h1 className="text-2xl font-extrabold sm:text-3xl">Практика</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Твой английский — через живой разговор с преподавателем.
-        </p>
+        <h1 className="text-2xl font-extrabold sm:text-3xl">Расписание</h1>
+        <p className="mt-1 text-sm text-muted-foreground">План на неделю.</p>
       </header>
 
-      {upcoming ? (
-        <div className="relative overflow-hidden rounded-3xl gradient-hero p-5 text-primary-foreground shadow-lift sm:p-7">
-          <div className="absolute -right-16 -top-16 size-56 rounded-full bg-white/10 blur-2xl" />
-          <div className="relative">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-white/70">
-              {relativeDay(upcoming.date)} · {upcoming.startTime}–{upcoming.endTime}
-            </p>
-            <h2 className="mt-2 text-2xl font-extrabold sm:text-3xl">
-              {topicOf(upcoming.lessonOrder) || upcoming.title}
-            </h2>
-            <p className="mt-1.5 text-sm text-white/80">
-              {upcoming.type === "GROUP" ? "Групповое занятие" : "Индивидуальное занятие"} · Google
-              Meet
-            </p>
+      <div>
+        {days.map((day, i) => (
+          <DayRow key={day.date} day={day} first={i === 0} last={i === days.length - 1} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
-            {due.length > 0 && (
-              <div className="mt-5 rounded-2xl bg-white/10 p-4">
-                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-white/70">
-                  <Sparkles className="size-3.5" /> Подготовься
-                </p>
-                <p className="mt-1.5 text-sm text-white/90">
-                  Повтори {due.length} {due.length === 1 ? "слово" : "слов"} перед занятием
-                </p>
-              </div>
+function DayRow({ day, first, last }: { day: WeekPlanDay; first: boolean; last: boolean }) {
+  const Icon = kindIcon[day.kind];
+  const s = day.status;
+
+  const nodeClass =
+    s === "done"
+      ? "bg-success-soft text-success"
+      : s === "today"
+        ? "gradient-primary text-primary-foreground shadow-glow"
+        : s === "rest"
+          ? "border-2 border-dashed border-border bg-surface text-muted-foreground"
+          : "bg-muted text-muted-foreground";
+
+  const cardClass =
+    s === "today"
+      ? "rounded-xl border-2 border-primary bg-surface shadow-lift"
+      : s === "rest"
+        ? "surface-card border-dashed bg-surface/60"
+        : s === "locked"
+          ? "surface-card opacity-60"
+          : "surface-card";
+
+  return (
+    <div className="relative flex gap-3.5 pb-3 last:pb-0 sm:gap-4">
+      {/* Step rail */}
+      <div className="relative flex w-9 shrink-0 items-center justify-center">
+        <span
+          className={cn(
+            "absolute left-1/2 w-0.5 -translate-x-1/2 bg-border",
+            first ? "top-1/2" : "top-0",
+            last ? "bottom-1/2" : "-bottom-3",
+          )}
+        />
+        <span
+          className={cn(
+            "relative z-10 grid size-9 shrink-0 place-items-center rounded-full text-[11px] font-extrabold uppercase tracking-wide",
+            nodeClass,
+          )}
+        >
+          {weekdayShort(day.date)}
+        </span>
+      </div>
+
+      {/* Day card */}
+      <div className={cn("flex min-h-41 min-w-0 flex-1 flex-col p-4", cardClass)}>
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+            {day.weekday} · {formatDate(day.date)}
+          </p>
+          <span
+            className={cn(
+              "shrink-0 text-[11px] font-bold uppercase tracking-wide",
+              s === "today" ? "text-primary" : "text-muted-foreground",
             )}
+          >
+            {statusLabel[s]}
+          </span>
+        </div>
 
-            <a
-              href={upcoming.meetUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[oklch(0.42_0.19_275)] transition hover:opacity-90 active:scale-[0.99]"
+        <div className="mt-2 flex items-start gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground">
+            <Icon className="size-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p
+              className={cn(
+                "truncate text-sm font-extrabold",
+                s === "rest" && "text-muted-foreground",
+              )}
             >
-              <Video className="size-4" /> Подключиться
-            </a>
+              {day.title}
+            </p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">{day.meta}</p>
           </div>
         </div>
-      ) : (
-        <EmptyState
-          icon={CalendarClock}
-          title="Практика пока не назначена"
-          description="Куратор добавит занятие и ссылку Google Meet — оно появится здесь."
-        />
-      )}
 
-      {history.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-[13px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-            История
-          </h2>
-          <div className="surface-card divide-y divide-border overflow-hidden">
-            {history.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 px-4 py-3.5">
-                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground">
-                  <Video className="size-4" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-bold">
-                    {topicOf(m.lessonOrder) || m.title}
-                  </span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {formatDate(m.date)} · {m.startTime}
-                  </span>
-                </span>
-                <MeetingPill status={m.status} />
-              </div>
-            ))}
-          </div>
-        </section>
+        <div className="mt-auto">
+          <DayAction day={day} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const BTN =
+  "flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface px-2 text-xs font-bold text-foreground transition";
+const BTN_HOVER = "hover:border-primary/40 hover:bg-muted";
+
+function DayAction({ day }: { day: WeekPlanDay }) {
+  const { status, kind, meetUrl, lessonOrder } = day;
+
+  if (kind === "rest") return null;
+
+  // Закрытая карточка уже приглушена целиком — кнопку дополнительно не гасим.
+  const offClass = cn("cursor-not-allowed", status !== "locked" && "opacity-45");
+
+  if (kind === "practice") {
+    if (status === "today" && meetUrl) {
+      return (
+        <a
+          href={meetUrl}
+          target="_blank"
+          rel="noreferrer"
+          className={cn(
+            BTN,
+            "mt-3 border-transparent gradient-primary text-primary-foreground shadow-glow hover:opacity-95",
+          )}
+        >
+          <Video className="size-4" /> Подключиться к уроку
+        </a>
+      );
+    }
+    return (
+      <span className={cn(BTN, offClass, "mt-3")}>
+        <Video className="size-4" /> Подключиться к уроку
+      </span>
+    );
+  }
+
+  const locked = status === "locked" || !lessonOrder;
+
+  return (
+    <div className="mt-3 flex gap-2">
+      {locked ? (
+        <>
+          <span className={cn(BTN, offClass)}>
+            <PlayCircle className="size-4" /> Смотреть урок
+          </span>
+          <span className={cn(BTN, offClass)}>
+            <FileText className="size-4" /> Пройти тест
+          </span>
+        </>
+      ) : (
+        <>
+          <Link
+            to="/lesson/$order"
+            params={{ order: String(lessonOrder) }}
+            className={cn(BTN, BTN_HOVER)}
+          >
+            <PlayCircle className="size-4" /> Смотреть урок
+          </Link>
+          <Link
+            to="/lesson/$order/test"
+            params={{ order: String(lessonOrder) }}
+            className={cn(BTN, BTN_HOVER)}
+          >
+            <FileText className="size-4" /> Пройти тест
+          </Link>
+        </>
       )}
     </div>
   );

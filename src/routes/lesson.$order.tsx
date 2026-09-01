@@ -1,23 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import {
-  ArrowLeft,
-  ArrowRight,
-  CalendarClock,
-  CheckCircle2,
-  FileText,
-  Lock,
-  Sparkles,
-  Video,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, FileText, Lock } from "lucide-react";
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { toast } from "sonner";
 import {
-  formatDate,
   lessonState,
   testAvailability,
   testForLesson,
   useApp,
-  vocabForLesson,
   watchedPctOf,
 } from "@/lib/store";
 import { StudentShell } from "@/components/StudentShell";
@@ -48,7 +37,6 @@ function LessonPage() {
     currentStudent,
     completeLesson,
     updateWatchProgress,
-    meetingsFor,
     testVideoUrl,
     lessons,
     tests,
@@ -93,7 +81,6 @@ function LessonPage() {
     );
   }
 
-  const practice = meetingsFor(student).find((m) => m.lessonOrder === lesson.order);
   const prev = lessons.find((l) => l.order === lesson.order - 1);
   const next = lessons.find((l) => l.order === lesson.order + 1);
   const nextLocked = next ? next.order > student.openedUpTo : true;
@@ -138,172 +125,98 @@ function LessonPage() {
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <section>
-          <div className="flex flex-wrap items-center gap-2">
-            <Pill tone="primary">Урок {lesson.order}</Pill>
-            <LessonPill state={state} />
-            <span className="text-xs font-semibold text-muted-foreground">
-              Видео {lesson.duration}
-            </span>
-          </div>
-          <h1 className="mt-3 text-2xl font-extrabold sm:text-3xl">{lesson.title}</h1>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            {lesson.description}. Смотрите теорию в любое удобное время — урок остаётся доступным.
-            На практике вы отработаете тему в живом разговоре с преподавателем.
-          </p>
+      <section>
+        <div className="flex flex-wrap items-center gap-2">
+          <Pill tone="primary">Урок {lesson.order}</Pill>
+          <LessonPill state={state} />
+          <span className="text-xs font-semibold text-muted-foreground">
+            Видео {lesson.duration}
+          </span>
+        </div>
+        <h1 className="mt-3 text-2xl font-extrabold sm:text-3xl">{lesson.title}</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          {lesson.description}. Смотрите теорию в любое удобное время — урок остаётся доступным.
+          На практике вы отработаете тему в живом разговоре с преподавателем.
+        </p>
 
-          <div className="mt-5 space-y-3">
-            {state === "completed" ? (
-              <span className="inline-flex items-center gap-2 rounded-xl bg-success-soft px-5 py-3 text-sm font-bold text-success">
-                <CheckCircle2 className="size-4" /> Урок завершён
-              </span>
-            ) : (
-              <div className="rounded-xl border border-border bg-surface p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-bold text-muted-foreground">
-                    Просмотрено {watchedPct}%
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Завершается автоматически после 90%
-                  </p>
-                </div>
-                <ProgressBar value={watchedPct} className="mt-2" />
+        <div className="mt-5 space-y-3">
+          {state === "completed" ? (
+            <span className="inline-flex items-center gap-2 rounded-xl bg-success-soft px-5 py-3 text-sm font-bold text-success">
+              <CheckCircle2 className="size-4" /> Урок завершён
+            </span>
+          ) : (
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-bold text-muted-foreground">
+                  Просмотрено {watchedPct}%
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Завершается автоматически после 90%
+                </p>
               </div>
-            )}
-
-            <div className="flex flex-wrap gap-3">
-              {next && !nextLocked && (
-                <button
-                  onClick={() =>
-                    navigate({ to: "/lesson/$order", params: { order: String(next.order) } })
-                  }
-                  className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-5 py-3 text-sm font-bold transition hover:bg-muted"
-                >
-                  Следующий урок <ArrowRight className="size-4" />
-                </button>
-              )}
+              <ProgressBar value={watchedPct} className="mt-2" />
             </div>
-          </div>
-
-          {next && nextLocked && (
-            <p className="mt-4 rounded-2xl border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">
-              Следующий урок пока закрыт. Куратор откроет его после текущего этапа.
-            </p>
           )}
-        </section>
 
-        <aside className="space-y-4">
-          <TestCard order={lesson.order} student={student} tests={tests} attempts={attempts} />
-          <VocabTeaser order={lesson.order} student={student} />
-
-          <div className="surface-card p-5">
-            <p className="text-[13px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-              Практика по теме
-            </p>
-            {practice ? (
-              <>
-                <div className="mt-3 flex items-start gap-3">
-                  <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
-                    <Video className="size-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-extrabold">
-                      {formatDate(practice.date)} · {practice.startTime}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {practice.type === "GROUP" ? "Группа" : "Индивидуально"} · Google Meet
-                    </p>
-                  </div>
-                </div>
-                <a
-                  href={practice.meetUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-4 flex items-center justify-center gap-2 rounded-xl gradient-primary py-3 text-sm font-bold text-primary-foreground shadow-glow"
-                >
-                  Подключиться к практике
-                </a>
-              </>
-            ) : (
-              <p className="mt-3 text-xs text-muted-foreground">
-                Практика по этому уроку пока не назначена. Ссылка появится здесь и в расписании.
-              </p>
+          <div className="flex flex-wrap gap-3">
+            {next && !nextLocked && (
+              <button
+                onClick={() =>
+                  navigate({ to: "/lesson/$order", params: { order: String(next.order) } })
+                }
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-5 py-3 text-sm font-bold transition hover:bg-muted"
+              >
+                Следующий урок <ArrowRight className="size-4" />
+              </button>
             )}
           </div>
+        </div>
+      </section>
 
-          <div className="surface-card p-5">
-            <p className="text-[13px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-              Соседние уроки
-            </p>
-            <div className="mt-3 space-y-2">
-              {prev && (
-                <Link
-                  to="/lesson/$order"
-                  params={{ order: String(prev.order) }}
-                  className="flex items-center gap-2 rounded-xl bg-muted/70 px-3 py-2.5 text-xs font-semibold hover:bg-muted"
-                >
-                  <ArrowLeft className="size-3.5 shrink-0" />
-                  <span className="truncate">
-                    {prev.order}. {prev.title}
-                  </span>
-                </Link>
+      <TestCard order={lesson.order} student={student} tests={tests} attempts={attempts} />
+
+      <div className="surface-card p-5">
+        <p className="text-[13px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+          Следующий урок
+        </p>
+        <div className="mt-3 space-y-2">
+          {prev && (
+            <Link
+              to="/lesson/$order"
+              params={{ order: String(prev.order) }}
+              className="flex items-center gap-2 rounded-xl bg-muted/70 px-3 py-2.5 text-xs font-semibold hover:bg-muted"
+            >
+              <ArrowLeft className="size-3.5 shrink-0" />
+              <span className="truncate">
+                {prev.order}. {prev.title}
+              </span>
+            </Link>
+          )}
+          {next && (
+            <div
+              className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold ${
+                nextLocked ? "bg-muted/40 text-muted-foreground" : "bg-muted/70"
+              }`}
+            >
+              {nextLocked ? (
+                <Lock className="size-3.5 shrink-0" />
+              ) : (
+                <ArrowRight className="size-3.5 shrink-0" />
               )}
-              {next && (
-                <div
-                  className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold ${
-                    nextLocked ? "bg-muted/40 text-muted-foreground" : "bg-muted/70"
-                  }`}
-                >
-                  {nextLocked ? (
-                    <Lock className="size-3.5 shrink-0" />
-                  ) : (
-                    <ArrowRight className="size-3.5 shrink-0" />
-                  )}
-                  <span className="truncate">
-                    {next.order}. {next.title}
-                  </span>
-                </div>
-              )}
+              <span className="truncate">
+                {next.order}. {next.title}
+              </span>
             </div>
-          </div>
-
-          <Link
-            to="/practice"
-            className="flex items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-bold transition hover:bg-muted"
-          >
-            <span className="flex items-center gap-2">
-              <CalendarClock className="size-4 text-primary" /> Практика
-            </span>
-            <ArrowRight className="size-4 text-muted-foreground" />
-          </Link>
-        </aside>
+          )}
+        </div>
       </div>
+
+      {next && nextLocked && (
+        <p className="rounded-2xl border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">
+          Следующий урок пока закрыт. Куратор откроет его после текущего этапа.
+        </p>
+      )}
     </div>
-  );
-}
-
-function VocabTeaser({ order, student }: { order: number; student: Student }) {
-  const words = vocabForLesson(order);
-  if (words.length === 0) return null;
-  const due = words.filter((w) => !student.knownWords.includes(w.id)).length;
-
-  return (
-    <Link
-      to="/vocabulary"
-      className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3.5 text-sm font-bold transition hover:bg-muted"
-    >
-      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
-        <Sparkles className="size-4" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate">Слова к уроку</span>
-        <span className="block truncate text-xs font-medium text-muted-foreground">
-          {words.length} слов{due > 0 ? ` · ${due} на повторение` : " · всё освоено"}
-        </span>
-      </span>
-      <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
-    </Link>
   );
 }
 
@@ -375,7 +288,7 @@ function BackLink() {
       to="/learn"
       className="inline-flex items-center gap-1.5 text-sm font-bold text-muted-foreground transition hover:text-foreground"
     >
-      <ArrowLeft className="size-4" /> К учёбе
+      <ArrowLeft className="size-4" /> Назад
     </Link>
   );
 }
