@@ -57,11 +57,17 @@ function LoginPage() {
         <div className="absolute -bottom-32 -left-16 size-96 rounded-full bg-white/10 blur-3xl" />
         <div className="relative flex items-center gap-2.5">
           <img
-            src="/icon.jpg"
-            alt="Sozmor"
-            className="size-9 shrink-0 rounded-xl object-cover"
+            src="/logo-mark.png"
+            alt=""
+            aria-hidden="true"
+            className="size-9 shrink-0 object-contain"
           />
-          <span className="text-sm font-extrabold tracking-tight">Sozmor</span>
+          <div className="-ml-1 leading-none">
+            <div className="text-[16px] font-extrabold tracking-tight">Sozmor</div>
+            <div className="mt-1 text-[10px] font-bold tracking-wide text-white/70">
+              Academy
+            </div>
+          </div>
         </div>
 
         <div className="relative max-w-md">

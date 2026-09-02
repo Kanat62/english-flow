@@ -4,16 +4,18 @@ import type { AccessStatus, LessonState, MeetingStatus } from "@/lib/mock-data";
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-center gap-2.5 lg:pl-3">
       <img
-        src="/icon.jpg"
-        alt="sozmor"
-        className="size-9 shrink-0 rounded-xl object-cover shadow-glow"
+        src="/logo-mark.png"
+        alt={compact ? "Sozmor Academy" : ""}
+        className="size-9 shrink-0 object-contain"
       />
       {!compact && (
-        <div className="leading-tight">
-          <p className="text-sm font-extrabold tracking-tight">Sozmor Academy</p>
-          <p className="text-[11px] font-medium text-muted-foreground">Learning Platform</p>
+        <div className="-ml-1 leading-none">
+          <div className="text-[16px] font-extrabold tracking-tight">Sozmor</div>
+          <div className="mt-1 text-[10px] font-bold tracking-wide text-muted-foreground">
+            Academy
+          </div>
         </div>
       )}
     </div>

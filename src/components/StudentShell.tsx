@@ -76,16 +76,14 @@ export function StudentShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile header — main page only, not fixed/sticky */}
-      {pathname === "/dashboard" && (
-        <header className="flex items-center justify-between border-b border-border bg-surface/85 px-4 py-3 lg:hidden">
-          <Logo />
-          <div className="flex items-center gap-2.5">
-            <Balance amount={0} />
-            <Avatar name={fullName} tone={currentStudent.avatarTone} size="sm" />
-          </div>
-        </header>
-      )}
+      {/* Mobile header — shown on every page, not fixed/sticky */}
+      <header className="flex items-center justify-between border-b border-border bg-surface/85 px-4 py-3 lg:hidden">
+        <Logo />
+        <div className="flex items-center gap-2.5">
+          <Balance amount={0} />
+          <Avatar name={fullName} tone={currentStudent.avatarTone} size="sm" />
+        </div>
+      </header>
 
       <main className="mx-auto w-full max-w-5xl px-4 pb-28 pt-5 lg:pl-64 lg:pr-6 lg:pt-8 lg:pb-12">
         <div className="lg:max-w-4xl">{children}</div>

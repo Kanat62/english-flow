@@ -54,9 +54,9 @@ function SchedulePage() {
 
   return (
     <div className="space-y-6 rise-in">
-      <header>
+      <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h1 className="text-2xl font-extrabold sm:text-3xl">Расписание</h1>
-        <p className="mt-1 text-sm text-muted-foreground">План на неделю.</p>
+        <p className="text-sm text-muted-foreground">План на неделю.</p>
       </header>
 
       <div>
