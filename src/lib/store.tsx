@@ -10,25 +10,34 @@ import {
 import {
   COURSE_STAGES,
   CURATOR,
+  GROUPS,
   LESSONS,
   MEETINGS,
   NOTES,
   STUDENTS,
+  TEACHERS,
   TESTS,
   TEST_ATTEMPTS,
   TODAY,
+  courseProduct,
   type AccessStatus,
   type CefrLevel,
+  type CourseProduct,
   type CourseStage,
   type CourseType,
+  type Group,
+  type GroupStatus,
+  type LanguageCode,
   type Lesson,
   type LessonState,
   type LessonTest,
   type Meeting,
   type Note,
+  type PaymentInfo,
   type QuestionType,
   type Role,
   type Student,
+  type Teacher,
   type TestAttempt,
 } from "./mock-data";
 
@@ -39,6 +48,8 @@ interface Session {
 
 interface AppState {
   students: Student[];
+  groups: Group[];
+  teachers: Teacher[];
   meetings: Meeting[];
   notes: Note[];
   session: Session | null;
@@ -47,10 +58,12 @@ interface AppState {
   attempts: TestAttempt[];
 }
 
-const STORAGE_KEY = "elp-state-v4";
+const STORAGE_KEY = "elp-state-v5";
 
 const initialState: AppState = {
   students: STUDENTS,
+  groups: GROUPS,
+  teachers: TEACHERS,
   meetings: MEETINGS,
   notes: NOTES,
   session: null,
@@ -60,11 +73,30 @@ const initialState: AppState = {
 };
 
 function normalizeStudent(s: Student): Student {
+  const language: LanguageCode = s.language ?? "en";
+  const type: CourseType = s.type ?? "GROUP";
+  const product = courseProduct(language, type);
   return {
     ...s,
+    language,
+    type,
+    age: s.age ?? null,
+    city: s.city ?? "",
+    groupId: s.groupId ?? null,
+    teacherId: s.teacherId ?? null,
     completed: s.completed ?? [],
     completedAt: s.completedAt ?? {},
     watched: s.watched ?? {},
+    onboarded: s.onboarded ?? true,
+    managerName: s.managerName ?? "—",
+    payment:
+      s.payment ??
+      ({
+        totalCost: product.price,
+        paid: product.price,
+        purchaseDate: s.startDate,
+        status: "full",
+      } satisfies PaymentInfo),
   };
 }
 
@@ -73,6 +105,9 @@ function normalizeState(raw: Partial<AppState>): AppState {
     ...initialState,
     ...raw,
     students: (raw.students ?? initialState.students).map(normalizeStudent),
+    groups: raw.groups?.length ? raw.groups : initialState.groups,
+    teachers: raw.teachers?.length ? raw.teachers : initialState.teachers,
+    meetings: (raw.meetings ?? initialState.meetings).map((m) => ({ ...m, groupId: m.groupId ?? null })),
     lessons: raw.lessons?.length ? raw.lessons : initialState.lessons,
     tests: raw.tests ?? initialState.tests,
     attempts: raw.attempts ?? initialState.attempts,
@@ -86,6 +121,16 @@ interface Ctx extends AppState {
   currentStudent: Student | null;
   updateStudent: (id: string, patch: Partial<Student>) => void;
   addStudent: (s: Student) => void;
+  bulkUpdateStudents: (ids: string[], patch: Partial<Student>) => void;
+  assignStudentToGroup: (studentId: string, groupId: string | null) => void;
+  addGroup: (g: Group) => void;
+  updateGroup: (id: string, patch: Partial<Group>) => void;
+  assignTeacherToGroup: (groupId: string, teacherId: string | null) => void;
+  setGroupCurrentLesson: (groupId: string, order: number) => void;
+  publishLessonForGroup: (groupId: string, order: number) => void;
+  addTeacher: (t: Teacher) => void;
+  updateTeacher: (id: string, patch: Partial<Teacher>) => void;
+  markAttendance: (meetingId: string, studentId: string, present: boolean) => void;
   openNextLesson: (id: string) => void;
   completeLesson: (studentId: string, order: number) => void;
   updateWatchProgress: (studentId: string, order: number, pct: number) => void;
@@ -185,6 +230,77 @@ export function AppProvider({ children }: { children: ReactNode }) {
       currentStudent,
       updateStudent,
       addStudent: (s) => setState((p) => ({ ...p, students: [s, ...p.students] })),
+      bulkUpdateStudents: (ids, patch) =>
+        setState((p) => ({
+          ...p,
+          students: p.students.map((st) => (ids.includes(st.id) ? { ...st, ...patch } : st)),
+        })),
+      assignStudentToGroup: (studentId, groupId) =>
+        setState((p) => {
+          const group = p.groups.find((g) => g.id === groupId) ?? null;
+          return {
+            ...p,
+            students: p.students.map((st) =>
+              st.id === studentId
+                ? {
+                    ...st,
+                    groupId,
+                    teacherId: group ? group.teacherId : st.teacherId,
+                    startDate: group ? group.startDate : st.startDate,
+                    endDate: group ? group.endDate : st.endDate,
+                  }
+                : st,
+            ),
+          };
+        }),
+      addGroup: (g) => setState((p) => ({ ...p, groups: [...p.groups, g] })),
+      updateGroup: (id, patch) =>
+        setState((p) => ({
+          ...p,
+          groups: p.groups.map((g) => (g.id === id ? { ...g, ...patch } : g)),
+        })),
+      assignTeacherToGroup: (groupId, teacherId) =>
+        setState((p) => ({
+          ...p,
+          groups: p.groups.map((g) => (g.id === groupId ? { ...g, teacherId } : g)),
+          students: p.students.map((st) =>
+            st.groupId === groupId ? { ...st, teacherId } : st,
+          ),
+        })),
+      setGroupCurrentLesson: (groupId, order) =>
+        setState((p) => ({
+          ...p,
+          groups: p.groups.map((g) => (g.id === groupId ? { ...g, currentLesson: order } : g)),
+        })),
+      publishLessonForGroup: (groupId, order) =>
+        setState((p) => ({
+          ...p,
+          groups: p.groups.map((g) =>
+            g.id === groupId ? { ...g, currentLesson: Math.max(g.currentLesson, order) } : g,
+          ),
+          students: p.students.map((st) =>
+            st.groupId === groupId && accessStatus(st) === "active" && st.openedUpTo < order
+              ? { ...st, openedUpTo: order }
+              : st,
+          ),
+        })),
+      addTeacher: (t) => setState((p) => ({ ...p, teachers: [...p.teachers, t] })),
+      updateTeacher: (id, patch) =>
+        setState((p) => ({
+          ...p,
+          teachers: p.teachers.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+        })),
+      markAttendance: (meetingId, studentId, present) =>
+        setState((p) => ({
+          ...p,
+          meetings: p.meetings.map((m) => {
+            if (m.id !== meetingId) return m;
+            const set = new Set(m.attended ?? []);
+            if (present) set.add(studentId);
+            else set.delete(studentId);
+            return { ...m, attended: [...set] };
+          }),
+        })),
       openNextLesson: (id) =>
         setState((p) => ({
           ...p,
@@ -263,7 +379,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       meetingsFor: (student) =>
         state.meetings
           .filter((m) =>
-            student.type === "GROUP" ? m.studentId === "group" : m.studentId === student.id,
+            student.type === "GROUP"
+              ? student.groupId
+                ? m.groupId === student.groupId
+                : m.studentId === "group"
+              : m.studentId === student.id,
           )
           .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime)),
       reset: () => {
@@ -529,6 +649,171 @@ export function currentLessonOrder(student: Student) {
     if (!(student.completed ?? []).includes(i)) return i;
   }
   return Math.min(student.openedUpTo, LESSONS.length);
+}
+
+/* ---------- академия: язык · курс · группа · преподаватель ---------- */
+
+const LESSONS_PER_MONTH = Math.ceil(LESSONS.length / 6);
+
+/** Месяц программы (1–6) для урока. */
+export function monthOfLesson(order: number) {
+  return Math.min(6, Math.max(1, Math.ceil(order / LESSONS_PER_MONTH)));
+}
+
+export function levelForLesson(product: CourseProduct, order: number): CefrLevel {
+  const month = monthOfLesson(order);
+  return product.levelPlan.find((p) => p.month === month)?.level ?? "A1";
+}
+
+export interface GroupStage {
+  month: number;
+  level: CefrLevel;
+  lesson: number;
+  topic: string;
+}
+
+export function groupStage(group: Group, lessons: Lesson[]): GroupStage {
+  const product = courseProduct(group.language, "GROUP");
+  const lesson = lessons.find((l) => l.order === group.currentLesson);
+  return {
+    month: monthOfLesson(group.currentLesson),
+    level: levelForLesson(product, group.currentLesson),
+    lesson: group.currentLesson,
+    topic: lesson?.title ?? "—",
+  };
+}
+
+export function teacherOf(teachers: Teacher[], id: string | null) {
+  return id ? (teachers.find((t) => t.id === id) ?? null) : null;
+}
+
+export function groupOf(groups: Group[], student: Student) {
+  return student.groupId ? (groups.find((g) => g.id === student.groupId) ?? null) : null;
+}
+
+export function studentsInGroup(students: Student[], groupId: string) {
+  return students.filter((s) => s.groupId === groupId);
+}
+
+export function groupIsFull(students: Student[], group: Group) {
+  return studentsInGroup(students, group.id).length >= group.maxStudents;
+}
+
+export interface GroupHealth {
+  total: number;
+  active: number;
+  atRisk: number;
+  inactive: number;
+}
+
+export function groupHealth(students: Student[], groupId: string, today = TODAY): GroupHealth {
+  const list = studentsInGroup(students, groupId);
+  let active = 0;
+  let atRisk = 0;
+  let inactive = 0;
+  for (const s of list) {
+    const idle = -daysLeft(s.lastActivity, today);
+    if (idle >= 5) inactive++;
+    else if (idle >= 3) atRisk++;
+    else active++;
+  }
+  return { total: list.length, active, atRisk, inactive };
+}
+
+/**
+ * Конфликт расписания преподавателя: занят ли он в другой активной/набираемой группе
+ * в тот же вечерний слот (по времени старта практики).
+ */
+export function teacherGroupConflict(
+  groups: Group[],
+  teacherId: string,
+  practiceStart: string,
+  exceptGroupId?: string,
+) {
+  return groups.find(
+    (g) =>
+      g.id !== exceptGroupId &&
+      g.teacherId === teacherId &&
+      g.practiceStart === practiceStart &&
+      (g.status === "active" || g.status === "recruiting"),
+  );
+}
+
+/**
+ * Подбор ближайшей подходящей группы для нового ученика: тот же язык, набор ещё открыт
+ * (группа не стартовала или на этапе набора), есть места. Сортировка по дате старта.
+ */
+export function findMatchingGroup(
+  groups: Group[],
+  students: Student[],
+  language: LanguageCode,
+  fromDate = TODAY,
+  time?: string,
+) {
+  return groups
+    .filter((g) => g.language === language)
+    .filter((g) => g.status === "recruiting")
+    .filter((g) => g.startDate >= fromDate)
+    .filter((g) => !time || g.practiceStart === time)
+    .filter((g) => !groupIsFull(students, g))
+    .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
+}
+
+export const GROUP_STATUS_LABEL: Record<GroupStatus, string> = {
+  recruiting: "Набор",
+  active: "Активна",
+  finished: "Завершена",
+  archived: "Архив",
+};
+
+const WEEK_RHYTHM: ("theory" | "practice" | "rest")[] = [
+  "theory",
+  "practice",
+  "theory",
+  "practice",
+  "theory",
+  "practice",
+  "rest",
+];
+
+export function groupWeekSchedule(group: Group) {
+  const days = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+  return days.map((day, i) => ({
+    day,
+    kind: WEEK_RHYTHM[i]!,
+    time: WEEK_RHYTHM[i] === "practice" ? `${group.practiceStart}–${group.practiceEnd}` : "",
+  }));
+}
+
+/* ---------- «требует внимания» ---------- */
+
+export interface AttentionBuckets {
+  idleStudents: Student[];
+  groupsNoTeacher: Group[];
+  groupsNoLink: Group[];
+  notOnboarded: Student[];
+  groupsEndingSoon: Group[];
+}
+
+export function attentionBuckets(
+  students: Student[],
+  groups: Group[],
+  today = TODAY,
+): AttentionBuckets {
+  const activeStudents = students.filter((s) => accessStatus(s) === "active");
+  return {
+    idleStudents: activeStudents.filter((s) => -daysLeft(s.lastActivity, today) >= 3),
+    groupsNoTeacher: groups.filter(
+      (g) => !g.teacherId && (g.status === "active" || g.status === "recruiting"),
+    ),
+    groupsNoLink: groups.filter(
+      (g) => !g.meetUrl && (g.status === "active" || g.status === "recruiting"),
+    ),
+    notOnboarded: activeStudents.filter((s) => !s.onboarded),
+    groupsEndingSoon: groups.filter(
+      (g) => g.status === "active" && daysLeft(g.endDate, today) <= 21 && daysLeft(g.endDate, today) >= 0,
+    ),
+  };
 }
 
 export type StageStatus = "locked" | "current" | "completed";

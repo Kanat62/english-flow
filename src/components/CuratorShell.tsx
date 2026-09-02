@@ -1,5 +1,13 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { BookOpen, CalendarDays, LayoutDashboard, LogOut, Users } from "lucide-react";
+import {
+  BookOpen,
+  CalendarDays,
+  GraduationCap,
+  LayoutDashboard,
+  LogOut,
+  Presentation,
+  Users,
+} from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/lib/store";
@@ -9,8 +17,10 @@ import { Avatar, Logo } from "./shared";
 const nav = [
   { to: "/curator", label: "Обзор", icon: LayoutDashboard },
   { to: "/curator/students", label: "Ученики", icon: Users },
-  { to: "/curator/course", label: "Курс", icon: BookOpen },
+  { to: "/curator/groups", label: "Группы", icon: GraduationCap },
+  { to: "/curator/teachers", label: "Преподаватели", icon: Presentation },
   { to: "/curator/schedule", label: "Расписание", icon: CalendarDays },
+  { to: "/curator/course", label: "Курсы", icon: BookOpen },
 ] as const;
 
 export function CuratorShell({ children }: { children: ReactNode }) {
@@ -90,23 +100,23 @@ export function CuratorShell({ children }: { children: ReactNode }) {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 backdrop-blur lg:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-4">
+        <div className="flex overflow-x-auto">
           {nav.map((item) => (
             <Link
               key={item.to}
               to={item.to}
               className={cn(
-                "flex flex-col items-center gap-1 py-2.5 text-xs font-bold",
+                "flex min-w-[4.5rem] flex-1 flex-col items-center gap-1 py-2 text-[10px] font-bold",
                 isActive(item.to) ? "text-primary" : "text-muted-foreground",
               )}
             >
               <span
                 className={cn(
-                  "grid size-11 place-items-center rounded-xl",
+                  "grid size-9 place-items-center rounded-xl",
                   isActive(item.to) && "bg-primary-soft",
                 )}
               >
-                <item.icon className="size-6" />
+                <item.icon className="size-[18px]" />
               </span>
               {item.label}
             </Link>

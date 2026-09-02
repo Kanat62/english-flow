@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BookOpen, ChevronRight, Clock3, Lock, Search, Unlock, Upload, Video, X } from "lucide-react";
+import { BookOpen, ChevronRight, Clock3, Layers, Lock, Search, Unlock, Upload, Video, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { COURSE } from "@/lib/mock-data";
+import { COURSE_PRODUCTS } from "@/lib/mock-data";
 import { publishedUpTo, useApp } from "@/lib/store";
 import { CuratorShell } from "@/components/CuratorShell";
-import { EmptyState, Pill, SectionTitle, VideoPlayer } from "@/components/shared";
+import { EmptyState, LangPill, SectionTitle, VideoPlayer } from "@/components/shared";
 
 export const Route = createFileRoute("/curator/course/")({
   head: () => ({
@@ -60,12 +60,52 @@ function CuratorCourse() {
   return (
     <div className="space-y-5 rise-in">
       <header>
-        <h1 className="text-2xl font-extrabold sm:text-3xl">Курс English</h1>
+        <h1 className="text-2xl font-extrabold sm:text-3xl">Курсы и контент</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {lessons.length} уроков · открыто {allPublishedUpTo}/{lessons.length} ·{" "}
-          {COURSE.variants.map((v) => `${v.type} ${v.duration}`).join(" · ")}
+          Один теоретический контент — несколько форматов. Практика отличается, теория общая.
         </p>
       </header>
+
+      <section>
+        <SectionTitle title="Продукты" icon={Layers} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          {COURSE_PRODUCTS.map((c) => (
+            <div key={c.id} className="surface-card space-y-2 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-extrabold">{c.title}</p>
+                <LangPill code={c.language} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {c.format === "GROUP" ? "Групповой" : "Индивидуальный"} · {c.durationMonths} мес ·{" "}
+                {c.price.toLocaleString("ru")} {c.currency}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {c.features.map((feat) => (
+                  <span
+                    key={feat}
+                    className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                  >
+                    {feat}
+                  </span>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Программа:{" "}
+                {c.levelPlan.map((p) => `M${p.month}→${p.level}`).join(" · ")}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="surface-card flex items-start gap-3 p-4">
+        <Layers className="mt-0.5 size-4 shrink-0 text-primary" />
+        <p className="text-xs text-muted-foreground">
+          Библиотека теории ниже используется всеми форматами без дублирования. Для групп урок
+          открывается на экране группы, для Individual — здесь (глобально). Открыто{" "}
+          {allPublishedUpTo}/{lessons.length}.
+        </p>
+      </div>
 
       <div className="surface-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">

@@ -1,6 +1,13 @@
 import { useRef, type ReactNode, type SyntheticEvent } from "react";
 import { cn } from "@/lib/utils";
-import type { AccessStatus, LessonState, MeetingStatus } from "@/lib/mock-data";
+import type {
+  AccessStatus,
+  GroupStatus,
+  LanguageCode,
+  LessonState,
+  MeetingStatus,
+  TeacherStatus,
+} from "@/lib/mock-data";
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
@@ -72,6 +79,31 @@ export function AccessPill({ status }: { status: AccessStatus }) {
     active: { label: "Активен", tone: "success" },
     expired: { label: "Истёк", tone: "warning" },
     disabled: { label: "Отключён", tone: "danger" },
+  };
+  return <Pill tone={map[status].tone}>{map[status].label}</Pill>;
+}
+
+export function LangPill({ code }: { code: LanguageCode }) {
+  return (
+    <Pill tone={code === "en" ? "primary" : "neutral"}>{code === "en" ? "English" : "Русский"}</Pill>
+  );
+}
+
+export function GroupStatusPill({ status }: { status: GroupStatus }) {
+  const map: Record<GroupStatus, { label: string; tone: Tone }> = {
+    recruiting: { label: "Набор", tone: "warning" },
+    active: { label: "Активна", tone: "success" },
+    finished: { label: "Завершена", tone: "neutral" },
+    archived: { label: "Архив", tone: "neutral" },
+  };
+  return <Pill tone={map[status].tone}>{map[status].label}</Pill>;
+}
+
+export function TeacherStatusPill({ status }: { status: TeacherStatus }) {
+  const map: Record<TeacherStatus, { label: string; tone: Tone }> = {
+    active: { label: "Активна", tone: "success" },
+    absent: { label: "Отсутствует", tone: "warning" },
+    replacement: { label: "Нужна замена", tone: "danger" },
   };
   return <Pill tone={map[status].tone}>{map[status].label}</Pill>;
 }

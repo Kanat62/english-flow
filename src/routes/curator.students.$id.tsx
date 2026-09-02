@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   CalendarClock,
   CheckCircle2,
+  GraduationCap,
   Lock,
   Plus,
   StickyNote,
@@ -11,17 +12,26 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { TODAY, type AccessStatus } from "@/lib/mock-data";
+import {
+  TODAY,
+  courseProduct,
+  languageNameRu,
+  type AccessStatus,
+} from "@/lib/mock-data";
 import {
   accessStatus,
-  bestAttempt,
   currentLessonOrder,
   daysLeft,
   formatDate,
   formatFull,
+  groupOf,
   lessonState,
+  levelForLesson,
+  monthOfLesson,
+  practiceStats,
   progressOf,
-  testForLesson,
+  teacherOf,
+  testsStats,
   useApp,
 } from "@/lib/store";
 import { CuratorShell } from "@/components/CuratorShell";
@@ -29,6 +39,7 @@ import {
   AccessPill,
   Avatar,
   EmptyState,
+  LangPill,
   MeetingPill,
   Pill,
   ProgressBar,
@@ -41,10 +52,8 @@ export const Route = createFileRoute("/curator/students/$id")({
       { title: "Карточка ученика — кабинет куратора" },
       {
         name: "description",
-        content: "Прогресс ученика, учебный путь, практики и внутренние заметки куратора.",
+        content: "Обзор, обучение, практика, прогресс, заметки и оплата ученика.",
       },
-      { property: "og:title", content: "Карточка ученика" },
-      { property: "og:description", content: "Открытие уроков, практики и заметки." },
     ],
   }),
   component: () => (
@@ -54,34 +63,41 @@ export const Route = createFileRoute("/curator/students/$id")({
   ),
 });
 
-const tabs = ["Обзор", "Учебный путь", "Заметки"] as const;
+const tabs = ["Обзор", "Обучение", "Практика", "Прогресс", "Заметки", "Оплата"] as const;
 
 function StudentCard() {
   const { id } = Route.useParams();
   const {
     students,
+    groups,
+    teachers,
     lessons,
     notes,
     addNote,
     deleteNote,
     updateStudent,
+    assignStudentToGroup,
     meetingsFor,
-    addMeeting,
     tests,
     attempts,
   } = useApp();
   const [tab, setTab] = useState<(typeof tabs)[number]>("Обзор");
   const [note, setNote] = useState("");
-  const [meetForm, setMeetForm] = useState({ date: TODAY, time: "21:00", url: "" });
 
   const s = students.find((st) => st.id === id);
   if (!s) return <EmptyState icon={Lock} title="Ученик не найден" />;
 
   const status = accessStatus(s);
   const order = currentLessonOrder(s);
+  const product = courseProduct(s.language, s.type);
+  const group = groupOf(groups, s);
+  const teacher = teacherOf(teachers, s.teacherId);
   const meetings = meetingsFor(s);
   const nextMeeting = meetings.find((m) => m.status === "scheduled" && m.date >= TODAY);
   const studentNotes = notes.filter((n) => n.studentId === s.id);
+  const ts = testsStats(s, tests, attempts);
+  const ps = practiceStats(meetings);
+  const pay = s.payment;
 
   return (
     <div className="space-y-5 overflow-x-hidden rise-in">
@@ -101,6 +117,7 @@ function StudentCard() {
                 {s.firstName} {s.lastName}
               </h1>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <LangPill code={s.language} />
                 <Pill tone={s.type === "GROUP" ? "neutral" : "primary"}>
                   {s.type === "GROUP" ? "Group" : "Individual"}
                 </Pill>
@@ -122,7 +139,7 @@ function StudentCard() {
             { l: "Прогресс", v: `${progressOf(s)}%` },
             { l: "Открыто", v: `${s.openedUpTo}/${lessons.length}` },
             {
-              l: "Следующая практика",
+              l: "Ближайшая практика",
               v: nextMeeting ? `${formatDate(nextMeeting.date)} · ${nextMeeting.startTime}` : "—",
             },
           ].map((x) => (
@@ -157,6 +174,17 @@ function StudentCard() {
               className="bg-transparent text-sm font-bold text-foreground outline-none"
             />
           </label>
+          {!s.onboarded && (
+            <button
+              onClick={() => {
+                updateStudent(s.id, { onboarded: true });
+                toast.success("Onboarding отмечен завершённым");
+              }}
+              className="rounded-xl border border-border bg-surface px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-foreground"
+            >
+              Завершить onboarding
+            </button>
+          )}
         </div>
       </header>
 
@@ -179,145 +207,200 @@ function StudentCard() {
       {tab === "Обзор" && (
         <div className="grid gap-5 lg:grid-cols-2">
           <section>
-            <SectionTitle title="Контакты и доступ" />
+            <SectionTitle title="Кто и что купил" />
             <div className="surface-card divide-y divide-border overflow-hidden text-sm">
               {[
-                ["Логин", s.login],
+                ["Логин", `@${s.login}`],
                 ["Телефон", s.phone || "—"],
+                ["Возраст", s.age ? String(s.age) : "—"],
+                ["Город", s.city || "—"],
+                ["Менеджер", s.managerName],
+                ["Продукт", `${product.title} · ${product.price.toLocaleString("ru")} ${product.currency}`],
                 ["Начало", formatFull(s.startDate)],
                 ["Окончание", formatFull(s.endDate)],
               ].map(([l, v]) => (
-                <div key={l} className="flex items-center justify-between px-4 py-3">
+                <div key={l} className="flex items-center justify-between gap-3 px-4 py-3">
                   <span className="text-muted-foreground">{l}</span>
-                  <span className="font-bold">{v}</span>
+                  <span className="text-right font-bold">{v}</span>
                 </div>
               ))}
             </div>
           </section>
 
           <section>
-            <SectionTitle title="Практики" icon={CalendarClock} />
-            <div className="space-y-2.5">
-              {meetings.length === 0 && <EmptyState icon={Video} title="Практик пока нет" />}
-              {meetings.map((m) => (
-                <div key={m.id} className="surface-card flex flex-wrap items-center gap-3 p-4">
-                  <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
-                    <Video className="size-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold">{m.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(m.date)} · {m.startTime}
-                    </p>
-                  </div>
-                  <MeetingPill status={m.status} />
-                </div>
-              ))}
-            </div>
-
-            <div className="surface-card mt-3 space-y-2 p-4">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                Новая практика по уроку {order}
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="date"
-                  value={meetForm.date}
-                  onChange={(e) => setMeetForm({ ...meetForm, date: e.target.value })}
-                  className="w-full min-w-0 rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-medium outline-none"
-                />
-                <input
-                  type="time"
-                  value={meetForm.time}
-                  onChange={(e) => setMeetForm({ ...meetForm, time: e.target.value })}
-                  className="w-full min-w-0 rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-medium outline-none"
-                />
+            <SectionTitle title="Где учится" icon={GraduationCap} />
+            <div className="surface-card space-y-3 p-4 text-sm">
+              {s.type === "GROUP" ? (
+                group ? (
+                  <Link
+                    to="/curator/groups/$id"
+                    params={{ id: group.id }}
+                    className="flex items-center justify-between rounded-xl bg-muted/60 px-3 py-2.5 font-bold transition hover:bg-muted"
+                  >
+                    {group.name}
+                    <ArrowLeft className="size-4 rotate-180 text-muted-foreground" />
+                  </Link>
+                ) : (
+                  <p className="rounded-xl bg-warning-soft px-3 py-2.5 text-xs font-bold text-warning">
+                    Не назначен в группу
+                  </p>
+                )
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Индивидуальное обучение — группа не требуется.
+                </p>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Преподаватель</span>
+                <span className="font-bold">{teacher?.name ?? "—"}</span>
               </div>
-              <input
-                placeholder="https://meet.google.com/..."
-                value={meetForm.url}
-                onChange={(e) => setMeetForm({ ...meetForm, url: e.target.value })}
-                className="w-full rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-medium outline-none"
-              />
-              <button
-                onClick={() => {
-                  if (!meetForm.url) {
-                    toast.error("Добавьте ссылку Google Meet");
-                    return;
-                  }
-                  const [h, min] = meetForm.time.split(":");
-                  addMeeting({
-                    id: `m-${Date.now()}`,
-                    lessonOrder: order,
-                    studentId: s.type === "GROUP" ? "group" : s.id,
-                    title: `Практика: ${lessons[order - 1]?.title ?? ""}`,
-                    date: meetForm.date,
-                    startTime: meetForm.time,
-                    endTime: `${String((Number(h) + 1) % 24).padStart(2, "0")}:${min}`,
-                    meetUrl: meetForm.url,
-                    type: s.type,
-                    status: "scheduled",
-                  });
-                  setMeetForm({ ...meetForm, url: "" });
-                  toast.success("Практика назначена");
-                }}
-                className="flex w-full items-center justify-center gap-2 rounded-xl gradient-primary py-2.5 text-sm font-bold text-primary-foreground"
-              >
-                <Plus className="size-4" /> Назначить практику
-              </button>
+
+              {s.type === "GROUP" && (
+                <label className="block text-xs font-semibold text-muted-foreground">
+                  Изменить группу
+                  <select
+                    className="mt-1 w-full rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-medium outline-none focus:border-primary"
+                    value={s.groupId ?? ""}
+                    onChange={(e) => {
+                      assignStudentToGroup(s.id, e.target.value || null);
+                      toast.success(
+                        e.target.value
+                          ? "Группа изменена — расписание практики обновлено"
+                          : "Ученик снят с группы",
+                      );
+                    }}
+                  >
+                    <option value="">— без группы —</option>
+                    {groups
+                      .filter((g) => g.language === s.language)
+                      .map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              )}
             </div>
           </section>
         </div>
       )}
 
-      {tab === "Учебный путь" && (
-        <div className="surface-card max-h-[70vh] divide-y divide-border overflow-y-auto">
-          {lessons.map((l) => {
-            const st = lessonState(s, l.order);
-            const test = testForLesson(tests, l.order, false);
-            const best = test ? bestAttempt(attempts, s.id, test.id) : null;
-            return (
-              <div key={l.id} className="flex items-center gap-3 px-4 py-3">
-                <span
-                  className={`grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold ${
-                    st === "completed"
-                      ? "bg-success-soft text-success"
-                      : st === "available"
-                        ? "gradient-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {st === "completed" ? (
-                    <CheckCircle2 className="size-4" />
-                  ) : st === "locked" ? (
-                    <Lock className="size-3.5" />
-                  ) : (
-                    l.order
-                  )}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-bold">
+      {tab === "Обучение" && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              { l: "Текущий уровень", v: levelForLesson(product, order) },
+              { l: "Текущий месяц", v: `${monthOfLesson(order)} / 6` },
+              { l: "Текущий урок", v: `${order}` },
+              { l: "Открытые уроки", v: `${s.openedUpTo}` },
+              { l: "Пройдено", v: `${s.completed.length}` },
+              { l: "Тесты пройдены", v: `${ts.passed}/${ts.total}` },
+            ].map((x) => (
+              <div key={x.l} className="surface-card p-3">
+                <p className="text-sm font-extrabold">{x.v}</p>
+                <p className="text-[11px] text-muted-foreground">{x.l}</p>
+              </div>
+            ))}
+          </div>
+          <div className="surface-card max-h-[60vh] divide-y divide-border overflow-y-auto">
+            {lessons.map((l) => {
+              const stt = lessonState(s, l.order);
+              return (
+                <div key={l.id} className="flex items-center gap-3 px-4 py-2.5">
+                  <span
+                    className={`grid size-7 shrink-0 place-items-center rounded-full text-[11px] font-bold ${
+                      stt === "completed"
+                        ? "bg-success-soft text-success"
+                        : stt === "available"
+                          ? "gradient-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {stt === "completed" ? <CheckCircle2 className="size-3.5" /> : l.order}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">
                     {l.order}. {l.title}
                   </span>
-                  <span className="block truncate text-xs text-muted-foreground">{l.block}</span>
-                </span>
-                {best && (
-                  <span className="hidden sm:block">
-                    <Pill tone={best.passed ? "success" : "warning"}>Тест · {best.score}%</Pill>
-                  </span>
-                )}
-                <span className="hidden sm:block">
-                  <Pill
-                    tone={
-                      st === "completed" ? "success" : st === "available" ? "primary" : "neutral"
-                    }
-                  >
-                    {st === "completed" ? "Завершён" : st === "available" ? "Открыт" : "Закрыт"}
+                  <Pill tone={stt === "completed" ? "success" : stt === "available" ? "primary" : "neutral"}>
+                    {stt === "completed" ? "Пройден" : stt === "available" ? "Открыт" : "Закрыт"}
                   </Pill>
-                </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {tab === "Практика" && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { l: "Всего практик", v: `${ps.total}` },
+              { l: "Посещено", v: `${ps.attended}` },
+              {
+                l: "Ближайшая",
+                v: nextMeeting ? formatDate(nextMeeting.date) : "—",
+              },
+            ].map((x) => (
+              <div key={x.l} className="surface-card p-3 text-center">
+                <p className="text-lg font-extrabold">{x.v}</p>
+                <p className="text-[11px] text-muted-foreground">{x.l}</p>
               </div>
-            );
-          })}
+            ))}
+          </div>
+          {meetings.length === 0 && <EmptyState icon={Video} title="Практик пока нет" />}
+          {meetings.map((m) => (
+            <div key={m.id} className="surface-card flex flex-wrap items-center gap-3 p-4">
+              <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+                <Video className="size-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold">{m.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatDate(m.date)} · {m.startTime}–{m.endTime}
+                  {m.status === "completed" &&
+                    ` · ${m.attended?.includes(s.id) ? "присутствовал" : "не присутствовал"}`}
+                </p>
+              </div>
+              {m.meetUrl && (
+                <a
+                  href={m.meetUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-lg gradient-primary px-3 py-1.5 text-xs font-bold text-primary-foreground"
+                >
+                  Meet
+                </a>
+              )}
+              <MeetingPill status={m.status} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "Прогресс" && (
+        <div className="space-y-4">
+          <div className="surface-card p-5">
+            <SectionTitle title="Course progress" icon={CheckCircle2} />
+            <ProgressBar value={progressOf(s)} tone="success" />
+            <p className="mt-2 text-xs text-muted-foreground">
+              {s.completed.length} из {lessons.length} уроков · {progressOf(s)}%
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              { l: "Lessons", v: `${s.completed.length}/${lessons.length}` },
+              { l: "Tests", v: `${ts.passed}/${ts.total}` },
+              { l: "Practice", v: `${ps.attended}/${ps.total}` },
+              { l: "Streak", v: `${Math.max(0, daysLeft(TODAY, s.lastActivity))} дн.` },
+            ].map((x) => (
+              <div key={x.l} className="surface-card p-3">
+                <p className="text-sm font-extrabold">{x.v}</p>
+                <p className="text-[11px] text-muted-foreground">{x.l}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -328,7 +411,7 @@ function StudentCard() {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={3}
-              placeholder="Внутренняя заметка о прогрессе ученика…"
+              placeholder="Внутренняя заметка куратора… (ученик её не видит)"
               className="w-full resize-none rounded-xl border border-input bg-surface p-3 text-sm outline-none focus:border-primary"
             />
             <button
@@ -343,13 +426,8 @@ function StudentCard() {
               <Plus className="size-4" /> Добавить заметку
             </button>
           </div>
-
           {studentNotes.length === 0 ? (
-            <EmptyState
-              icon={StickyNote}
-              title="У вас пока нет заметок"
-              description="Ученик их не видит."
-            />
+            <EmptyState icon={StickyNote} title="Заметок пока нет" />
           ) : (
             studentNotes.map((n) => (
               <div key={n.id} className="surface-card p-4">
@@ -370,6 +448,95 @@ function StudentCard() {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {tab === "Оплата" && (
+        <div className="space-y-4">
+          <div className="surface-card p-5">
+            <SectionTitle title="Платёжная информация" icon={CalendarClock} />
+            <p className="mb-3 text-xs text-muted-foreground">
+              Платформа не принимает оплату — данные передаёт отдел продаж.
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { l: "Стоимость", v: pay.totalCost.toLocaleString("ru") },
+                { l: "Оплачено", v: pay.paid.toLocaleString("ru") },
+                { l: "Осталось", v: Math.max(0, pay.totalCost - pay.paid).toLocaleString("ru") },
+              ].map((x) => (
+                <div key={x.l} className="rounded-xl bg-muted/70 p-3 text-center">
+                  <p className="text-base font-extrabold">{x.v}</p>
+                  <p className="text-[11px] text-muted-foreground">{x.l}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Дата покупки</span>
+              <span className="font-bold">{formatFull(pay.purchaseDate)}</span>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Статус оплаты</span>
+              <Pill
+                tone={pay.status === "full" ? "success" : pay.status === "partial" ? "warning" : "danger"}
+              >
+                {pay.status === "full"
+                  ? "Оплачено полностью"
+                  : pay.status === "partial"
+                    ? "Первоначальный платёж"
+                    : "Не оплачено"}
+              </Pill>
+            </div>
+          </div>
+          <div className="surface-card space-y-3 p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Обновить платёж
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-xs font-semibold text-muted-foreground">
+                Общая сумма
+                <input
+                  type="number"
+                  defaultValue={pay.totalCost}
+                  onBlur={(e) => {
+                    const total = Number(e.target.value) || pay.totalCost;
+                    updateStudent(s.id, {
+                      payment: {
+                        ...pay,
+                        totalCost: total,
+                        status: pay.paid >= total ? "full" : pay.paid > 0 ? "partial" : "unpaid",
+                      },
+                    });
+                    toast.success("Оплата обновлена");
+                  }}
+                  className="mt-1 w-full rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-medium outline-none focus:border-primary"
+                />
+              </label>
+              <label className="text-xs font-semibold text-muted-foreground">
+                Оплачено
+                <input
+                  type="number"
+                  defaultValue={pay.paid}
+                  onBlur={(e) => {
+                    const paid = Number(e.target.value) || 0;
+                    updateStudent(s.id, {
+                      payment: {
+                        ...pay,
+                        paid,
+                        status:
+                          paid >= pay.totalCost ? "full" : paid > 0 ? "partial" : "unpaid",
+                      },
+                    });
+                    toast.success("Оплата обновлена");
+                  }}
+                  className="mt-1 w-full rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-medium outline-none focus:border-primary"
+                />
+              </label>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Доступ выдаётся независимо от полноты оплаты — бизнес утверждает правило отдельно.
+              Продукт: {languageNameRu(s.language)}.
+            </p>
+          </div>
         </div>
       )}
     </div>
