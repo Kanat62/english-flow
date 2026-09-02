@@ -101,7 +101,7 @@ function StudentsPage() {
       return next;
     });
 
-  const groupLabel = (id: string | null) => groups.find((g) => g.id === id)?.name.split(" · ")[1] ?? "—";
+  const groupLabel = (id: string | null) => groups.find((g) => g.id === id)?.code ?? "—";
 
   return (
     <div className="space-y-5 rise-in">

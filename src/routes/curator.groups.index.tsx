@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   LANGUAGES,
-  languageNameRu,
+  groupName,
+  nextGroupCode,
   type Group,
   type GroupStatus,
   type LanguageCode,
@@ -173,10 +174,11 @@ function CreateGroupModal({ onClose }: { onClose: () => void }) {
     const d = new Date(f.startDate);
     const end = new Date(d);
     end.setMonth(end.getMonth() + 6);
-    const label = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
+    const code = nextGroupCode(groups, f.language);
     const g: Group = {
       id: `g-${Date.now()}`,
-      name: `${languageNameRu(f.language)} · ${label} · ${f.start}`,
+      code,
+      name: groupName(code, f.language, f.startDate, f.start),
       language: f.language,
       startDate: f.startDate,
       endDate: end.toISOString().slice(0, 10),

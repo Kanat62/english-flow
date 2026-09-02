@@ -58,7 +58,7 @@ interface AppState {
   attempts: TestAttempt[];
 }
 
-const STORAGE_KEY = "elp-state-v5";
+const STORAGE_KEY = "elp-state-v6";
 
 const initialState: AppState = {
   students: STUDENTS,
@@ -105,7 +105,10 @@ function normalizeState(raw: Partial<AppState>): AppState {
     ...initialState,
     ...raw,
     students: (raw.students ?? initialState.students).map(normalizeStudent),
-    groups: raw.groups?.length ? raw.groups : initialState.groups,
+    groups: (raw.groups?.length ? raw.groups : initialState.groups).map((g, i) => ({
+      ...g,
+      code: g.code ?? `${g.language === "ru" ? "RU" : "EN"}-${String(i + 1).padStart(2, "0")}`,
+    })),
     teachers: raw.teachers?.length ? raw.teachers : initialState.teachers,
     meetings: (raw.meetings ?? initialState.meetings).map((m) => ({ ...m, groupId: m.groupId ?? null })),
     lessons: raw.lessons?.length ? raw.lessons : initialState.lessons,

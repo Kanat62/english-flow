@@ -47,7 +47,9 @@ export interface Teacher {
 
 export interface Group {
   id: string;
-  /** Понятное человеку название, напр. «Английский язык · 07.09.2026 · 20:00». */
+  /** Короткий код потока для различения: EN-01, RU-01, … */
+  code: string;
+  /** Понятное человеку название, напр. «EN-01 · Английский язык · 07.09.2026 · 20:00». */
   name: string;
   language: LanguageCode;
   startDate: string;
@@ -362,10 +364,24 @@ export const TEACHERS: Teacher[] = [
 
 /* ---------- группы ---------- */
 
-function groupName(language: LanguageCode, startDate: string, time: string) {
+export function groupCodePrefix(language: LanguageCode) {
+  return language === "en" ? "EN" : "RU";
+}
+
+/** Следующий свободный код потока для языка: EN-01, EN-02, … */
+export function nextGroupCode(groups: Group[], language: LanguageCode) {
+  const prefix = groupCodePrefix(language);
+  const used = groups
+    .filter((g) => g.language === language)
+    .map((g) => Number(g.code.split("-")[1]) || 0);
+  const n = (used.length ? Math.max(...used) : 0) + 1;
+  return `${prefix}-${String(n).padStart(2, "0")}`;
+}
+
+export function groupName(code: string, language: LanguageCode, startDate: string, time: string) {
   const d = new Date(startDate);
   const label = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
-  return `${languageNameRu(language)} · ${label} · ${time}`;
+  return `${code} · ${languageNameRu(language)} · ${label} · ${time}`;
 }
 
 function endAfterMonths(startDate: string, months: number) {
@@ -385,10 +401,9 @@ function makeGroup(
   currentLesson: number,
   meetUrl: string,
   maxStudents = 50,
-): Group {
+): Omit<Group, "code" | "name"> {
   return {
     id,
-    name: groupName(language, startDate, practiceStart),
     language,
     startDate,
     endDate: endAfterMonths(startDate, 6),
@@ -402,7 +417,22 @@ function makeGroup(
   };
 }
 
-export const GROUPS: Group[] = [
+/** Нумерует потоки по языку в порядке даты старта: EN-01, EN-02, … / RU-01, … */
+function assignGroupCodes(rows: Omit<Group, "code" | "name">[]): Group[] {
+  const counters: Record<string, number> = {};
+  const codeById: Record<string, string> = {};
+  for (const g of [...rows].sort((a, b) => a.startDate.localeCompare(b.startDate))) {
+    const prefix = groupCodePrefix(g.language);
+    counters[prefix] = (counters[prefix] ?? 0) + 1;
+    codeById[g.id] = `${prefix}-${String(counters[prefix]).padStart(2, "0")}`;
+  }
+  return rows.map((g) => {
+    const code = codeById[g.id]!;
+    return { ...g, code, name: groupName(code, g.language, g.startDate, g.practiceStart) };
+  });
+}
+
+export const GROUPS: Group[] = assignGroupCodes([
   makeGroup("g-en-0824", "en", "2026-08-18", "20:00", "21:00", "t1", "active", 4, "https://meet.google.com/eng-0818-grp"),
   makeGroup("g-en-0907", "en", "2026-09-07", "20:00", "21:00", "t2", "recruiting", 1, "https://meet.google.com/eng-0907-grp"),
   makeGroup("g-en-0914", "en", "2026-09-14", "21:00", "22:00", null, "recruiting", 1, ""),
@@ -411,7 +441,7 @@ export const GROUPS: Group[] = [
   makeGroup("g-ru-0907", "ru", "2026-09-07", "20:00", "21:00", "t5", "recruiting", 1, ""),
   makeGroup("g-ru-0914", "ru", "2026-09-14", "21:00", "22:00", null, "recruiting", 1, "https://meet.google.com/rus-0914-grp"),
   makeGroup("g-en-0518", "en", "2026-05-10", "21:00", "22:00", "t1", "finished", 54, "https://meet.google.com/eng-old-grp"),
-];
+]);
 
 /* ---------- ученики ---------- */
 
