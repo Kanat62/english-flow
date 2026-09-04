@@ -55,6 +55,7 @@ function GroupScreen() {
     updateGroup,
     assignTeacherToGroup,
     publishLessonForGroup,
+    unpublishLessonForGroup,
     addMeeting,
   } = useApp();
   const [meetForm, setMeetForm] = useState({ date: TODAY, url: "" });
@@ -80,9 +81,6 @@ function GroupScreen() {
   const tomorrow = new Date(TODAY);
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowKind = dayKind(tomorrow);
-
-  const nextLesson = Math.min(lessons.length, g.currentLesson + 1);
-  const nextLessonTitle = lessons.find((l) => l.order === nextLesson)?.title ?? "";
 
   const scheduleMeeting = () => {
     if (!meetForm.url && !g.meetUrl) {
@@ -198,27 +196,59 @@ function GroupScreen() {
         ))}
       </section>
 
-      {/* Открытие урока для группы */}
+      {/* Доступ к урокам для группы */}
       <section className="surface-card p-5">
-        <SectionTitle title="Открытие урока для группы" icon={Unlock} />
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold">
-              Lesson {nextLesson}. {nextLessonTitle}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Текущий открытый этап группы: Lesson {g.currentLesson}
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              publishLessonForGroup(g.id, nextLesson);
-              toast.success(`Lesson ${nextLesson} открыт всем активным ученикам группы`);
-            }}
-            className="inline-flex items-center gap-2 rounded-xl gradient-primary px-4 py-2.5 text-xs font-bold text-primary-foreground"
-          >
-            <Unlock className="size-3.5" /> Открыть для группы
-          </button>
+        <SectionTitle title="Доступ к урокам" icon={Unlock} />
+        <p className="text-xs text-muted-foreground">
+          Уроки и тесты готовятся на экране курса. Здесь доступ открывается этой группе
+          по мере прохождения программы: открытие урока открывает все предыдущие, закрытие —
+          все последующие. Открыто {Math.max(0, g.currentLesson)} / {lessons.length}.
+        </p>
+        <div className="mt-3 max-h-104 divide-y divide-border overflow-y-auto rounded-xl border border-border">
+          {lessons.map((l) => {
+            const open = l.order <= g.currentLesson;
+            return (
+              <div key={l.id} className="flex items-center gap-3 px-3 py-2.5">
+                <span
+                  className={`grid size-8 shrink-0 place-items-center rounded-lg text-xs font-extrabold ${
+                    open ? "bg-success-soft text-success" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {l.order}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold">{l.title}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{l.block}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    if (open) {
+                      unpublishLessonForGroup(g.id, l.order);
+                      toast.success(`Lesson ${l.order} и последующие закрыты для группы`);
+                    } else {
+                      publishLessonForGroup(g.id, l.order);
+                      toast.success(`Lesson ${l.order} открыт активным ученикам группы`);
+                    }
+                  }}
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
+                    open
+                      ? "bg-success-soft text-success hover:bg-warning-soft hover:text-warning"
+                      : "gradient-primary text-primary-foreground"
+                  }`}
+                >
+                  {open ? (
+                    <>
+                      <Unlock className="size-3.5" /> Открыт
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="size-3.5" /> Закрыт
+                    </>
+                  )}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </section>
 

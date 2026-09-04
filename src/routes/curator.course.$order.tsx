@@ -1,8 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
-  CheckCircle2,
-  Circle,
   FileText,
   Lock,
   PlayCircle,
@@ -13,24 +11,10 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  attemptsFor,
-  bestAttempt,
-  lessonStats,
-  publishedUpTo,
-  useApp,
-  watchedPctOf,
-} from "@/lib/store";
+import { useApp } from "@/lib/store";
 import type { QuestionType } from "@/lib/mock-data";
 import { CuratorShell } from "@/components/CuratorShell";
-import {
-  Avatar,
-  EmptyState,
-  Pill,
-  ProgressBar,
-  SectionTitle,
-  VideoPlayer,
-} from "@/components/shared";
+import { EmptyState, Pill, SectionTitle, VideoPlayer } from "@/components/shared";
 
 const DEFAULT_VIDEO_URL = "/Video%20Project%201.mp4";
 
@@ -54,13 +38,9 @@ export const Route = createFileRoute("/curator/course/$order")({
 function LessonEditorPage() {
   const { order } = Route.useParams();
   const {
-    students,
     lessons,
     updateLesson,
-    publishLesson,
-    unpublishLesson,
     tests,
-    attempts,
     createTest,
     updateTest,
     deleteTest,
@@ -93,8 +73,6 @@ function LessonEditorPage() {
     );
   }
 
-  const stats = lessonStats(students, lesson.order);
-  const isOpenForAll = lesson.order <= publishedUpTo(students);
   const test = tests.find((t) => t.lessonOrder === lesson.order);
 
   const saveText = () => {
@@ -102,52 +80,18 @@ function LessonEditorPage() {
     toast.success("Урок обновлён");
   };
 
-  const statusOf = (studentId: string) => {
-    const s = students.find((st) => st.id === studentId)!;
-    if (s.openedUpTo < lesson.order) return { label: "Закрыт", tone: "neutral" as const };
-    if (s.completed.includes(lesson.order)) return { label: "Завершён", tone: "success" as const };
-    const pct = watchedPctOf(s, lesson.order);
-    if (pct > 0) return { label: `Смотрит · ${pct}%`, tone: "primary" as const };
-    return { label: "Не начал", tone: "neutral" as const };
-  };
-
   return (
     <div className="max-w-3xl space-y-5 rise-in">
       <BackLink />
 
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-            Урок {lesson.order}
-          </p>
-          <h1 className="truncate text-2xl font-extrabold sm:text-3xl">{lesson.title}</h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Pill tone={isOpenForAll ? "success" : "neutral"}>
-            {isOpenForAll ? "Открыт всем" : "Закрыт / частично открыт"}
-          </Pill>
-          {isOpenForAll ? (
-            <button
-              onClick={() => {
-                unpublishLesson(lesson.order);
-                toast.success(`Урок ${lesson.order} закрыт`);
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-bold text-muted-foreground transition hover:bg-muted"
-            >
-              <Lock className="size-3.5" /> Закрыть урок
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                publishLesson(lesson.order);
-                toast.success(`Урок ${lesson.order} опубликован для всех`);
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg gradient-primary px-3 py-1.5 text-xs font-bold text-primary-foreground"
-            >
-              <Unlock className="size-3.5" /> Опубликовать для всех
-            </button>
-          )}
-        </div>
+      <header className="min-w-0">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+          Урок {lesson.order}
+        </p>
+        <h1 className="truncate text-2xl font-extrabold sm:text-3xl">{lesson.title}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Контент урока общий для всех форматов. Доступ открывается каждой группе на её экране.
+        </p>
       </header>
 
       <section className="surface-card space-y-3 p-5">
@@ -380,84 +324,8 @@ function LessonEditorPage() {
             >
               <Plus className="size-3.5" /> Добавить вопрос
             </button>
-
-            <div className="surface-card mt-1 divide-y divide-border overflow-hidden">
-              <p className="bg-muted/40 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                Результаты учеников
-              </p>
-              {students.map((s) => {
-                const best = bestAttempt(attempts, s.id, test.id);
-                const inProgress = attemptsFor(attempts, s.id, test.id).some(
-                  (a) => a.status === "in_progress" && new Date(a.expiresAt).getTime() > Date.now(),
-                );
-                return (
-                  <div key={s.id} className="flex items-center gap-3 px-4 py-2.5">
-                    <Avatar name={`${s.firstName} ${s.lastName}`} tone={s.avatarTone} size="sm" />
-                    <p className="min-w-0 flex-1 truncate text-sm font-bold">
-                      {s.firstName} {s.lastName}
-                    </p>
-                    {best ? (
-                      <Pill tone={best.passed ? "success" : "warning"}>
-                        {best.correctCount}/{best.totalQuestions} · {best.score}%
-                      </Pill>
-                    ) : inProgress ? (
-                      <Pill tone="primary">Проходит сейчас</Pill>
-                    ) : (
-                      <Pill tone="neutral">Не проходил</Pill>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
           </>
         )}
-      </section>
-
-      <section className="surface-card space-y-2.5 p-5">
-        <SectionTitle title="Прогресс учеников" icon={CheckCircle2} />
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {[
-            { label: "Всего", value: stats.total },
-            { label: "Открыт у", value: stats.opened },
-            { label: "Смотрят", value: stats.inProgress },
-            { label: "Завершили", value: stats.completed },
-          ].map((s) => (
-            <div key={s.label} className="rounded-xl bg-muted/70 p-3 text-center">
-              <p className="text-lg font-extrabold">{s.value}</p>
-              <p className="text-[11px] text-muted-foreground">{s.label}</p>
-            </div>
-          ))}
-        </div>
-        <ProgressBar
-          value={stats.opened ? (stats.completed / stats.opened) * 100 : 0}
-          className="mt-1"
-          tone="success"
-        />
-
-        <div className="surface-card mt-2 divide-y divide-border overflow-hidden">
-          {students.map((s) => {
-            const st = statusOf(s.id);
-            return (
-              <div key={s.id} className="flex items-center gap-3 px-4 py-2.5">
-                <Avatar name={`${s.firstName} ${s.lastName}`} tone={s.avatarTone} size="sm" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold">
-                    {s.firstName} {s.lastName}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {s.type === "GROUP" ? "Group" : "Individual"}
-                  </p>
-                </div>
-                {st.label === "Закрыт" ? (
-                  <Lock className="size-3.5 shrink-0 text-muted-foreground" />
-                ) : st.label === "Не начал" ? (
-                  <Circle className="size-3.5 shrink-0 text-muted-foreground" />
-                ) : null}
-                <Pill tone={st.tone}>{st.label}</Pill>
-              </div>
-            );
-          })}
-        </div>
       </section>
     </div>
   );

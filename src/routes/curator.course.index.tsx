@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BookOpen, ChevronRight, Clock3, Layers, Lock, Search, Unlock, Upload, Video, X } from "lucide-react";
+import { BookOpen, ChevronRight, Clock3, Layers, Search, Upload, Video, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { COURSE_PRODUCTS } from "@/lib/mock-data";
-import { publishedUpTo, useApp } from "@/lib/store";
+import { useApp } from "@/lib/store";
 import { CuratorShell } from "@/components/CuratorShell";
 import { EmptyState, LangPill, SectionTitle, VideoPlayer } from "@/components/shared";
 
@@ -27,8 +27,7 @@ export const Route = createFileRoute("/curator/course/")({
 });
 
 function CuratorCourse() {
-  const { meetings, students, lessons, publishLesson, unpublishLesson, testVideoUrl, setTestVideoUrl } =
-    useApp();
+  const { meetings, lessons, testVideoUrl, setTestVideoUrl } = useApp();
   const [query, setQuery] = useState("");
   const [uploadedName, setUploadedName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -40,22 +39,6 @@ function CuratorCourse() {
       ),
     [lessons, query],
   );
-
-  const allPublishedUpTo = publishedUpTo(students);
-
-  const toggleLesson = (order: number, isOpen: boolean) => {
-    if (isOpen) {
-      unpublishLesson(order);
-      toast.success(
-        order < allPublishedUpTo
-          ? `Урок ${order} и последующие закрыты`
-          : `Урок ${order} закрыт`,
-      );
-    } else {
-      publishLesson(order);
-      toast.success(`Урок ${order} опубликован для всех`);
-    }
-  };
 
   return (
     <div className="space-y-5 rise-in">
@@ -101,9 +84,8 @@ function CuratorCourse() {
       <div className="surface-card flex items-start gap-3 p-4">
         <Layers className="mt-0.5 size-4 shrink-0 text-primary" />
         <p className="text-xs text-muted-foreground">
-          Библиотека теории ниже используется всеми форматами без дублирования. Для групп урок
-          открывается на экране группы, для Individual — здесь (глобально). Открыто{" "}
-          {allPublishedUpTo}/{lessons.length}.
+          Здесь готовится общий контент курса — тексты уроков, видео и тесты. Доступ к урокам
+          не выдаётся на этом экране: он открывается каждой группе отдельно на экране группы.
         </p>
       </div>
 
@@ -176,58 +158,30 @@ function CuratorCourse() {
         <div className="surface-card divide-y divide-border overflow-hidden">
           {list.map((l) => {
             const practice = meetings.find((m) => m.lessonOrder === l.order);
-            const open = l.order <= allPublishedUpTo;
             return (
-              <div
+              <Link
                 key={l.id}
-                className="flex flex-wrap items-center gap-3 px-4 py-3.5 transition hover:bg-muted/30"
+                to="/curator/course/$order"
+                params={{ order: String(l.order) }}
+                className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-muted/30"
               >
-                <Link
-                  to="/curator/course/$order"
-                  params={{ order: String(l.order) }}
-                  className="flex min-w-0 flex-1 items-center gap-3"
-                >
-                  <span
-                    className={`grid size-9 shrink-0 place-items-center rounded-xl text-xs font-extrabold ${
-                      open ? "bg-success-soft text-success" : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {l.order}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold">{l.title}</p>
-                    <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
-                      <Clock3 className="size-3 shrink-0" /> {l.duration} · {l.block}
-                      {practice && (
-                        <>
-                          {" "}
-                          · <Video className="size-3 shrink-0" /> практика
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                </Link>
-
-                <button
-                  onClick={() => toggleLesson(l.order, open)}
-                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
-                    open
-                      ? "bg-success-soft text-success hover:bg-warning-soft hover:text-warning"
-                      : "gradient-primary text-primary-foreground"
-                  }`}
-                >
-                  {open ? (
-                    <>
-                      <Unlock className="size-3.5" /> Открыт
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="size-3.5" /> Закрыт
-                    </>
-                  )}
-                </button>
-              </div>
+                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-xs font-extrabold text-muted-foreground">
+                  {l.order}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold">{l.title}</p>
+                  <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+                    <Clock3 className="size-3 shrink-0" /> {l.duration} · {l.block}
+                    {practice && (
+                      <>
+                        {" "}
+                        · <Video className="size-3 shrink-0" /> практика
+                      </>
+                    )}
+                  </p>
+                </div>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+              </Link>
             );
           })}
         </div>

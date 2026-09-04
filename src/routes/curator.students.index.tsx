@@ -1,12 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Download, Plus, Search, Users, X } from "lucide-react";
+import { Download, Plus, RefreshCw, Search, Users, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   LESSONS,
   TODAY,
   courseProduct,
-  languageName,
   type CourseType,
   type LanguageCode,
   type Student,
@@ -16,11 +15,21 @@ import {
   currentLessonOrder,
   findMatchingGroup,
   formatFull,
+  generateLogin,
+  generatePassword,
   progressOf,
   useApp,
 } from "@/lib/store";
 import { CuratorShell } from "@/components/CuratorShell";
-import { AccessPill, Avatar, EmptyState, LangPill, Pill, ProgressBar } from "@/components/shared";
+import {
+  AccessPill,
+  Avatar,
+  EmptyState,
+  PaymentPill,
+  Pill,
+  ProgressBar,
+  Select,
+} from "@/components/shared";
 
 export const Route = createFileRoute("/curator/students/")({
   validateSearch: (search: Record<string, unknown>): { new?: number } =>
@@ -104,7 +113,7 @@ function StudentsPage() {
   const groupLabel = (id: string | null) => groups.find((g) => g.id === id)?.code ?? "—";
 
   return (
-    <div className="space-y-5 rise-in">
+    <div className="space-y-5 rise-in lg:ml-[calc(50%-50vw+8.75rem)] lg:w-[calc(100vw-17.5rem)]">
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
         <div className="min-w-0">
           <h1 className="truncate text-2xl font-extrabold sm:text-3xl">Ученики</h1>
@@ -131,37 +140,54 @@ function StudentsPage() {
           />
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-          <select className={field} value={lang} onChange={(e) => setLang(e.target.value as never)}>
-            <option value="all">Все языки</option>
-            <option value="en">English</option>
-            <option value="ru">Русский</option>
-          </select>
-          <select className={field} value={format} onChange={(e) => setFormat(e.target.value as never)}>
-            <option value="all">Group + Individual</option>
-            <option value="GROUP">Group</option>
-            <option value="INDIVIDUAL">Individual</option>
-          </select>
-          <select className={field} value={status} onChange={(e) => setStatus(e.target.value as never)}>
-            <option value="all">Любой доступ</option>
-            <option value="active">Active</option>
-            <option value="expired">Expired</option>
-          </select>
-          <select className={field} value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-            <option value="all">Все группы</option>
-            {groups.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-          <select className={field} value={teacherId} onChange={(e) => setTeacherId(e.target.value)}>
-            <option value="all">Все преподаватели</option>
-            {teachers.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
+          <Select
+            ariaLabel="Язык"
+            value={lang}
+            onChange={(v) => setLang(v as never)}
+            options={[
+              { value: "all", label: "Все языки" },
+              { value: "en", label: "English" },
+              { value: "ru", label: "Русский" },
+            ]}
+          />
+          <Select
+            ariaLabel="Формат"
+            value={format}
+            onChange={(v) => setFormat(v as never)}
+            options={[
+              { value: "all", label: "Group + Individual" },
+              { value: "GROUP", label: "Group" },
+              { value: "INDIVIDUAL", label: "Individual" },
+            ]}
+          />
+          <Select
+            ariaLabel="Доступ"
+            value={status}
+            onChange={(v) => setStatus(v as never)}
+            options={[
+              { value: "all", label: "Любой доступ" },
+              { value: "active", label: "Active" },
+              { value: "expired", label: "Expired" },
+            ]}
+          />
+          <Select
+            ariaLabel="Группа"
+            value={groupId}
+            onChange={setGroupId}
+            options={[
+              { value: "all", label: "Все группы" },
+              ...groups.map((g) => ({ value: g.id, label: g.name })),
+            ]}
+          />
+          <Select
+            ariaLabel="Преподаватель"
+            value={teacherId}
+            onChange={setTeacherId}
+            options={[
+              { value: "all", label: "Все преподаватели" },
+              ...teachers.map((t) => ({ value: t.id, label: t.name })),
+            ]}
+          />
         </div>
       </div>
 
@@ -185,13 +211,16 @@ function StudentsPage() {
                     <input type="checkbox" checked={allOnPageSelected} onChange={toggleAllOnPage} />
                   </th>
                   <th className="px-3 py-3">Ученик</th>
-                  <th className="px-3 py-3">Язык</th>
+                  <th className="px-3 py-3">Курс</th>
                   <th className="px-3 py-3">Формат</th>
                   <th className="px-3 py-3">Группа</th>
+                  <th className="px-3 py-3">Начало курса</th>
+                  <th className="px-3 py-3">Конец курса</th>
                   <th className="px-3 py-3">Урок</th>
                   <th className="px-3 py-3">Прогресс</th>
+                  <th className="px-3 py-3">Оплата</th>
+                  <th className="px-3 py-3">Посл. активность</th>
                   <th className="px-3 py-3">Статус</th>
-                  <th className="px-3 py-3">До</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -219,8 +248,8 @@ function StudentsPage() {
                         </span>
                       </Link>
                     </td>
-                    <td className="px-3 py-3">
-                      <LangPill code={s.language} />
+                    <td className="px-3 py-3 text-xs font-semibold">
+                      {courseProduct(s.language, s.type).title}
                     </td>
                     <td className="px-3 py-3">
                       <Pill tone={s.type === "GROUP" ? "neutral" : "primary"}>
@@ -228,6 +257,12 @@ function StudentsPage() {
                       </Pill>
                     </td>
                     <td className="px-3 py-3 text-xs font-semibold">{groupLabel(s.groupId)}</td>
+                    <td className="px-3 py-3 text-xs text-muted-foreground">
+                      {formatFull(s.startDate)}
+                    </td>
+                    <td className="px-3 py-3 text-xs text-muted-foreground">
+                      {formatFull(s.endDate)}
+                    </td>
                     <td className="px-3 py-3 font-semibold">
                       {currentLessonOrder(s)}/{LESSONS.length}
                     </td>
@@ -238,9 +273,22 @@ function StudentsPage() {
                       </div>
                     </td>
                     <td className="px-3 py-3">
+                      <div className="flex flex-col items-start gap-1">
+                        <PaymentPill status={s.payment.status} />
+                        {s.payment.status !== "full" && (
+                          <span className="text-[11px] font-semibold text-muted-foreground">
+                            {Math.round((s.payment.paid / s.payment.totalCost) * 100)}% ·{" "}
+                            {s.payment.paid.toLocaleString("ru")} {courseProduct(s.language, s.type).currency}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-xs text-muted-foreground">
+                      {formatFull(s.lastActivity)}
+                    </td>
+                    <td className="px-3 py-3">
                       <AccessPill status={accessStatus(s)} />
                     </td>
-                    <td className="px-3 py-3 text-xs text-muted-foreground">{formatFull(s.endDate)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -266,13 +314,18 @@ function StudentsPage() {
                     <p className="truncate text-sm font-extrabold">
                       {s.firstName} {s.lastName}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {languageName(s.language)} · {s.type === "GROUP" ? "Group" : "Individual"} ·{" "}
-                      урок {currentLessonOrder(s)}
+                    <p className="truncate text-xs text-muted-foreground">
+                      {courseProduct(s.language, s.type).title} · урок {currentLessonOrder(s)}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {formatFull(s.startDate)} – {formatFull(s.endDate)}
                     </p>
                     <ProgressBar value={progressOf(s)} className="mt-2 h-1.5" />
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <AccessPill status={accessStatus(s)} />
+                      <PaymentPill status={s.payment.status} />
+                    </div>
                   </div>
-                  <AccessPill status={accessStatus(s)} />
                 </Link>
               </div>
             ))}
@@ -315,23 +368,25 @@ function BulkBar({
   students: Student[];
 }) {
   const { groups, teachers, bulkUpdateStudents } = useApp();
-  const [groupId, setGroupId] = useState("");
-  const [teacherId, setTeacherId] = useState("");
 
   const exportCsv = () => {
     const rows = students.filter((s) => ids.includes(s.id));
-    const header = "Name,Login,Phone,Language,Type,Group,Status,EndDate";
+    const header = "Name,Login,Phone,Course,Type,Group,StartDate,EndDate,Status,Paid,Total,Payment";
     const body = rows
       .map((s) =>
         [
           `${s.firstName} ${s.lastName}`,
           s.login,
           s.phone,
-          s.language,
+          courseProduct(s.language, s.type).title,
           s.type,
           groups.find((g) => g.id === s.groupId)?.name ?? "",
-          accessStatusLabel(s),
+          s.startDate,
           s.endDate,
+          accessStatusLabel(s),
+          s.payment.paid,
+          s.payment.totalCost,
+          s.payment.status,
         ]
           .map((v) => `"${String(v).replace(/"/g, '""')}"`)
           .join(","),
@@ -350,61 +405,41 @@ function BulkBar({
   return (
     <div className="surface-card sticky top-16 z-10 flex flex-wrap items-center gap-2 p-3">
       <span className="text-sm font-bold">Выбрано: {ids.length}</span>
-      <select
-        className="rounded-lg border border-border bg-surface px-2.5 py-2 text-xs font-semibold outline-none"
-        value={groupId}
-        onChange={(e) => {
-          setGroupId(e.target.value);
-          if (e.target.value) {
-            const g = groups.find((x) => x.id === e.target.value);
-            bulkUpdateStudents(ids, {
-              groupId: e.target.value,
-              teacherId: g?.teacherId ?? null,
-            });
-            toast.success(`${ids.length} учеников назначены в группу`);
-          }
+      <Select
+        className="w-48"
+        value=""
+        placeholder="Изменить группу…"
+        onChange={(v) => {
+          const g = groups.find((x) => x.id === v);
+          bulkUpdateStudents(ids, { groupId: v, teacherId: g?.teacherId ?? null });
+          toast.success(`${ids.length} учеников назначены в группу`);
         }}
-      >
-        <option value="">Изменить группу…</option>
-        {groups.map((g) => (
-          <option key={g.id} value={g.id}>
-            {g.name}
-          </option>
-        ))}
-      </select>
-      <select
-        className="rounded-lg border border-border bg-surface px-2.5 py-2 text-xs font-semibold outline-none"
-        value={teacherId}
-        onChange={(e) => {
-          setTeacherId(e.target.value);
-          if (e.target.value) {
-            bulkUpdateStudents(ids, { teacherId: e.target.value });
-            toast.success("Преподаватель изменён");
-          }
+        options={groups.map((g) => ({ value: g.id, label: g.name }))}
+      />
+      <Select
+        className="w-52"
+        value=""
+        placeholder="Изменить преподавателя…"
+        onChange={(v) => {
+          bulkUpdateStudents(ids, { teacherId: v });
+          toast.success("Преподаватель изменён");
         }}
-      >
-        <option value="">Изменить преподавателя…</option>
-        {teachers.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.name}
-          </option>
-        ))}
-      </select>
-      <select
-        className="rounded-lg border border-border bg-surface px-2.5 py-2 text-xs font-semibold outline-none"
-        defaultValue=""
-        onChange={(e) => {
-          if (e.target.value) {
-            bulkUpdateStudents(ids, { status: e.target.value as never });
-            toast.success("Статус изменён");
-          }
+        options={teachers.map((t) => ({ value: t.id, label: t.name }))}
+      />
+      <Select
+        className="w-44"
+        value=""
+        placeholder="Изменить статус…"
+        onChange={(v) => {
+          bulkUpdateStudents(ids, { status: v as never });
+          toast.success("Статус изменён");
         }}
-      >
-        <option value="">Изменить статус…</option>
-        <option value="active">Active</option>
-        <option value="expired">Expired</option>
-        <option value="disabled">Disabled</option>
-      </select>
+        options={[
+          { value: "active", label: "Active" },
+          { value: "expired", label: "Expired" },
+          { value: "disabled", label: "Disabled" },
+        ]}
+      />
       <button
         onClick={exportCsv}
         className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-2 text-xs font-bold"
@@ -424,6 +459,10 @@ function accessStatusLabel(s: Student) {
 
 function CreateStudentModal({ onClose }: { onClose: () => void }) {
   const { students, groups, addStudent } = useApp();
+
+  const takenLogins = useMemo(() => new Set(students.map((s) => s.login)), [students]);
+  const takenPasswords = useMemo(() => new Set(students.map((s) => s.password)), [students]);
+
   const [f, setF] = useState({
     firstName: "",
     lastName: "",
@@ -431,7 +470,6 @@ function CreateStudentModal({ onClose }: { onClose: () => void }) {
     city: "",
     phone: "",
     login: "",
-    password: "",
     language: "en" as LanguageCode,
     type: "GROUP" as CourseType,
     startDate: TODAY,
@@ -439,21 +477,53 @@ function CreateStudentModal({ onClose }: { onClose: () => void }) {
     total: "",
     paid: "",
     manager: "",
+    groupChoice: "", // "" = авто-подбор
   });
+  const [loginTouched, setLoginTouched] = useState(false);
+  // Пароль генерируется один раз и не редактируется куратором.
+  const [password] = useState(() => generatePassword(takenPasswords));
+
+  // Пока логин не правили вручную — держим его синхронным с именем и телефоном.
+  useEffect(() => {
+    if (loginTouched) return;
+    setF((prev) => ({ ...prev, login: generateLogin(prev.firstName, prev.phone, takenLogins) }));
+  }, [f.firstName, f.phone, loginTouched, takenLogins]);
 
   const product = courseProduct(f.language, f.type);
   const suggestedGroup =
     f.type === "GROUP"
       ? findMatchingGroup(groups, students, f.language, f.startDate, f.time)
       : undefined;
+  const languageGroups = groups.filter((g) => g.language === f.language);
+  const chosenGroup =
+    f.type === "GROUP"
+      ? f.groupChoice
+        ? (languageGroups.find((g) => g.id === f.groupChoice) ?? null)
+        : (suggestedGroup ?? null)
+      : null;
+
+  const loginError = !f.login
+    ? "Укажите логин"
+    : takenLogins.has(f.login)
+      ? "Такой логин уже есть в базе — измените"
+      : null;
+
+  const regenerateLogin = () => {
+    setLoginTouched(false);
+    setF((prev) => ({ ...prev, login: generateLogin(prev.firstName, prev.phone, takenLogins) }));
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!f.firstName || !f.login || !f.password) {
-      toast.error("Заполните имя, логин и пароль");
+    if (!f.firstName) {
+      toast.error("Укажите имя ученика");
       return;
     }
-    const group = suggestedGroup ?? null;
+    if (loginError) {
+      toast.error(loginError);
+      return;
+    }
+    const group = chosenGroup;
     const start = group ? group.startDate : f.startDate;
     const end = new Date(start);
     end.setMonth(end.getMonth() + product.durationMonths);
@@ -462,7 +532,7 @@ function CreateStudentModal({ onClose }: { onClose: () => void }) {
     addStudent({
       id: `s-${Date.now()}`,
       login: f.login,
-      password: f.password,
+      password,
       firstName: f.firstName,
       lastName: f.lastName,
       phone: f.phone,
@@ -501,10 +571,16 @@ function CreateStudentModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <button
+        type="button"
+        aria-label="Закрыть"
+        onClick={onClose}
+        className="fixed inset-0 h-full w-full cursor-default backdrop-blur-sm"
+      />
       <form
         onSubmit={submit}
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-surface p-5 shadow-lift sm:rounded-3xl"
+        className="relative mx-auto my-4 w-full max-w-lg rounded-3xl border border-border bg-surface p-5 shadow-lift sm:my-8"
       >
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-extrabold">Новый ученик</h2>
@@ -523,22 +599,72 @@ function CreateStudentModal({ onClose }: { onClose: () => void }) {
           <input className={field} placeholder="Город" value={f.city} onChange={(e) => setF({ ...f, city: e.target.value })} />
           <input className={field} placeholder="Телефон" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
           <input className={field} placeholder="Менеджер" value={f.manager} onChange={(e) => setF({ ...f, manager: e.target.value })} />
-          <input className={field} placeholder="Логин" value={f.login} onChange={(e) => setF({ ...f, login: e.target.value.toLowerCase() })} />
-          <input className={field} placeholder="Пароль" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
+        </div>
+
+        <p className="mt-4 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+          Доступ ученика
+        </p>
+        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <input
+                className={`${field} ${loginError ? "border-destructive focus:border-destructive focus:ring-destructive/10" : ""}`}
+                placeholder="Логин"
+                value={f.login}
+                onChange={(e) => {
+                  setLoginTouched(true);
+                  setF({ ...f, login: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, "") });
+                }}
+              />
+              <button
+                type="button"
+                onClick={regenerateLogin}
+                aria-label="Сгенерировать логин заново"
+                className="grid size-10 shrink-0 place-items-center rounded-xl border border-border text-muted-foreground hover:text-foreground"
+              >
+                <RefreshCw className="size-4" />
+              </button>
+            </div>
+            <p className={`mt-1 text-[11px] ${loginError ? "font-semibold text-destructive" : "text-muted-foreground"}`}>
+              {loginError ?? "Генерируется из имени и телефона · можно изменить, проверка уникальности автоматом"}
+            </p>
+          </div>
+          <div>
+            <input
+              className={`${field} cursor-not-allowed bg-muted/60`}
+              value={password}
+              readOnly
+              tabIndex={-1}
+              aria-label="Пароль"
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Пароль из 5 букв · сгенерирован и уникален · куратор не меняет
+            </p>
+          </div>
         </div>
 
         <p className="mt-4 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
           Обучение
         </p>
         <div className="mt-2 grid gap-3 sm:grid-cols-2">
-          <select className={field} value={f.language} onChange={(e) => setF({ ...f, language: e.target.value as LanguageCode })}>
-            <option value="en">English</option>
-            <option value="ru">Русский</option>
-          </select>
-          <select className={field} value={f.type} onChange={(e) => setF({ ...f, type: e.target.value as CourseType })}>
-            <option value="GROUP">Group</option>
-            <option value="INDIVIDUAL">Individual</option>
-          </select>
+          <Select
+            ariaLabel="Язык"
+            value={f.language}
+            onChange={(v) => setF({ ...f, language: v as LanguageCode, groupChoice: "" })}
+            options={[
+              { value: "en", label: "English" },
+              { value: "ru", label: "Русский" },
+            ]}
+          />
+          <Select
+            ariaLabel="Формат"
+            value={f.type}
+            onChange={(v) => setF({ ...f, type: v as CourseType, groupChoice: "" })}
+            options={[
+              { value: "GROUP", label: "Group" },
+              { value: "INDIVIDUAL", label: "Individual" },
+            ]}
+          />
           <label className="text-xs font-semibold text-muted-foreground">
             Дата начала
             <input type="date" className={`${field} mt-1`} value={f.startDate} onChange={(e) => setF({ ...f, startDate: e.target.value })} />
@@ -546,24 +672,57 @@ function CreateStudentModal({ onClose }: { onClose: () => void }) {
           {f.type === "GROUP" && (
             <label className="text-xs font-semibold text-muted-foreground">
               Вечерний слот
-              <select className={`${field} mt-1`} value={f.time} onChange={(e) => setF({ ...f, time: e.target.value })}>
-                <option value="20:00">20:00–21:00</option>
-                <option value="21:00">21:00–22:00</option>
-              </select>
+              <Select
+                className="mt-1"
+                ariaLabel="Вечерний слот"
+                value={f.time}
+                onChange={(v) => setF({ ...f, time: v })}
+                options={[
+                  { value: "20:00", label: "20:00–21:00" },
+                  { value: "21:00", label: "21:00–22:00" },
+                ]}
+              />
             </label>
           )}
         </div>
 
-        <div className="mt-2 rounded-xl bg-muted/70 p-3 text-xs">
+        {f.type === "GROUP" && (
+          <label className="mt-3 block text-xs font-semibold text-muted-foreground">
+            Группа
+            <Select
+              className="mt-1"
+              ariaLabel="Группа"
+              value={f.groupChoice}
+              onChange={(v) => setF({ ...f, groupChoice: v })}
+              placeholder={
+                suggestedGroup ? `Авто · ${suggestedGroup.name}` : "Авто · подходящей группы нет"
+              }
+              options={[
+                {
+                  value: "",
+                  label: suggestedGroup
+                    ? `Авто · ${suggestedGroup.name}`
+                    : "Авто · без группы (назначить позже)",
+                },
+                ...languageGroups.map((g) => ({ value: g.id, label: g.name })),
+              ]}
+            />
+            <span className="mt-1 block text-[11px] font-normal text-muted-foreground">
+              По умолчанию подбирается автоматически — можно выбрать другую вручную.
+            </span>
+          </label>
+        )}
+
+        <div className="mt-3 rounded-xl bg-muted/70 p-3 text-xs">
           <p className="font-bold">{product.title}</p>
           <p className="mt-0.5 text-muted-foreground">
             {product.durationMonths} мес · {product.price.toLocaleString("ru")} {product.currency}
           </p>
           {f.type === "GROUP" && (
             <p className="mt-1.5 font-semibold text-primary">
-              {suggestedGroup
-                ? `Будет назначен в: ${suggestedGroup.name}`
-                : "Подходящей открытой группы нет — назначьте вручную после создания"}
+              {chosenGroup
+                ? `Будет назначен в: ${chosenGroup.name}`
+                : "Группа не выбрана — назначьте вручную после создания"}
             </p>
           )}
         </div>

@@ -41,9 +41,11 @@ import {
   EmptyState,
   LangPill,
   MeetingPill,
+  PaymentPill,
   Pill,
   ProgressBar,
   SectionTitle,
+  Select,
 } from "@/components/shared";
 
 export const Route = createFileRoute("/curator/students/$id")({
@@ -153,18 +155,20 @@ function StudentCard() {
         <ProgressBar value={progressOf(s)} className="mt-4" />
 
         <div className="mt-5 flex flex-wrap gap-2">
-          <select
+          <Select
+            className="w-40"
+            ariaLabel="Статус доступа"
             value={s.status}
-            onChange={(e) => {
-              updateStudent(s.id, { status: e.target.value as AccessStatus });
+            onChange={(v) => {
+              updateStudent(s.id, { status: v as AccessStatus });
               toast.success("Статус обновлён");
             }}
-            className="rounded-xl border border-border bg-surface px-4 py-3 text-sm font-bold outline-none"
-          >
-            <option value="active">Active</option>
-            <option value="expired">Expired</option>
-            <option value="disabled">Disabled</option>
-          </select>
+            options={[
+              { value: "active", label: "Active" },
+              { value: "expired", label: "Expired" },
+              { value: "disabled", label: "Disabled" },
+            ]}
+          />
           <label className="flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-xs font-bold text-muted-foreground">
             Доступ до
             <input
@@ -216,14 +220,29 @@ function StudentCard() {
                 ["Город", s.city || "—"],
                 ["Менеджер", s.managerName],
                 ["Продукт", `${product.title} · ${product.price.toLocaleString("ru")} ${product.currency}`],
-                ["Начало", formatFull(s.startDate)],
-                ["Окончание", formatFull(s.endDate)],
+                ["Начало курса", formatFull(s.startDate)],
+                ["Конец курса", formatFull(s.endDate)],
               ].map(([l, v]) => (
                 <div key={l} className="flex items-center justify-between gap-3 px-4 py-3">
                   <span className="text-muted-foreground">{l}</span>
                   <span className="text-right font-bold">{v}</span>
                 </div>
               ))}
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <span className="text-muted-foreground">Оплата курса</span>
+                <div className="flex flex-col items-end gap-1">
+                  <PaymentPill status={pay.status} />
+                  <span className="text-xs font-bold">
+                    {pay.paid.toLocaleString("ru")} / {pay.totalCost.toLocaleString("ru")}{" "}
+                    {product.currency}
+                    {pay.status !== "full" && (
+                      <span className="ml-1 font-semibold text-muted-foreground">
+                        (осталось {Math.max(0, pay.totalCost - pay.paid).toLocaleString("ru")})
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -258,27 +277,25 @@ function StudentCard() {
               {s.type === "GROUP" && (
                 <label className="block text-xs font-semibold text-muted-foreground">
                   Изменить группу
-                  <select
-                    className="mt-1 w-full rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-medium outline-none focus:border-primary"
+                  <Select
+                    className="mt-1"
+                    ariaLabel="Изменить группу"
                     value={s.groupId ?? ""}
-                    onChange={(e) => {
-                      assignStudentToGroup(s.id, e.target.value || null);
+                    onChange={(v) => {
+                      assignStudentToGroup(s.id, v || null);
                       toast.success(
-                        e.target.value
+                        v
                           ? "Группа изменена — расписание практики обновлено"
                           : "Ученик снят с группы",
                       );
                     }}
-                  >
-                    <option value="">— без группы —</option>
-                    {groups
-                      .filter((g) => g.language === s.language)
-                      .map((g) => (
-                        <option key={g.id} value={g.id}>
-                          {g.name}
-                        </option>
-                      ))}
-                  </select>
+                    options={[
+                      { value: "", label: "— без группы —" },
+                      ...groups
+                        .filter((g) => g.language === s.language)
+                        .map((g) => ({ value: g.id, label: g.name })),
+                    ]}
+                  />
                 </label>
               )}
             </div>
