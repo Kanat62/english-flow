@@ -10,6 +10,68 @@ export type QuestionType = "single" | "multiple";
 export type TestStatus = "draft" | "published";
 export type AttemptStatus = "in_progress" | "submitted";
 
+/* ---------- академия: язык · курс · группа · преподаватель ---------- */
+
+export type LanguageCode = "en" | "ru";
+export type GroupStatus = "recruiting" | "active" | "finished" | "archived";
+export type TeacherStatus = "active" | "absent" | "replacement";
+export type PaymentStatus = "full" | "partial" | "unpaid";
+
+export interface Language {
+  code: LanguageCode;
+  name: string;
+  nameRu: string;
+}
+
+export interface CourseProduct {
+  id: string;
+  language: LanguageCode;
+  format: CourseType;
+  title: string;
+  durationMonths: number;
+  price: number;
+  currency: string;
+  features: string[];
+  /** Шаблон программы: месяц → уровень CEFR. Настройка курса, а не жёсткое условие. */
+  levelPlan: { month: number; level: CefrLevel }[];
+}
+
+export interface Teacher {
+  id: string;
+  name: string;
+  languages: LanguageCode[];
+  status: TeacherStatus;
+  phone: string;
+  tone: string;
+}
+
+export interface Group {
+  id: string;
+  /** Короткий код потока для различения: EN-01, RU-01, … */
+  code: string;
+  /** Понятное человеку название, напр. «EN-01 · Английский язык · 07.09.2026 · 20:00». */
+  name: string;
+  language: LanguageCode;
+  startDate: string;
+  endDate: string;
+  /** Вечерний слот практики хранится в группе, а не в коде. */
+  practiceStart: string;
+  practiceEnd: string;
+  teacherId: string | null;
+  maxStudents: number;
+  status: GroupStatus;
+  /** Общий текущий учебный этап группы (order урока). Прогресс ученика — отдельно. */
+  currentLesson: number;
+  meetUrl: string;
+}
+
+export interface PaymentInfo {
+  totalCost: number;
+  paid: number;
+  purchaseDate: string;
+  status: PaymentStatus;
+}
+
 export interface Lesson {
   id: string;
   order: number;
@@ -24,6 +86,8 @@ export interface Meeting {
   id: string;
   lessonOrder: number;
   studentId: string | "group";
+  /** Практика группового курса привязана к конкретной группе. */
+  groupId: string | null;
   title: string;
   date: string; // YYYY-MM-DD
   startTime: string;
@@ -31,6 +95,8 @@ export interface Meeting {
   meetUrl: string;
   type: CourseType;
   status: MeetingStatus;
+  /** Отмеченные преподавателем/куратором id учеников (attendance). */
+  attended?: string[];
 }
 
 export interface QuestionOption {
@@ -88,7 +154,14 @@ export interface Student {
   firstName: string;
   lastName: string;
   phone: string;
+  language: LanguageCode;
   type: CourseType;
+  age: number | null;
+  city: string;
+  /** Группа (только для группового курса). Индивидуальный — null. */
+  groupId: string | null;
+  /** Преподаватель. У Individual назначается напрямую; у Group берётся из группы. */
+  teacherId: string | null;
   startDate: string;
   endDate: string;
   status: AccessStatus;
@@ -98,6 +171,9 @@ export interface Student {
   watched: Record<number, number>; // order -> % просмотра видео (0-100)
   lastActivity: string;
   avatarTone: string;
+  onboarded: boolean;
+  managerName: string;
+  payment: PaymentInfo;
 }
 
 const titles: [string, string, string][] = [
@@ -192,103 +268,293 @@ export const COURSE = {
   name: "English",
   totalLessons: LESSONS.length,
   variants: [
-    { type: "GROUP" as CourseType, duration: "3 месяца", price: "10 000 сом" },
-    { type: "INDIVIDUAL" as CourseType, duration: "1 месяц", price: "25 000 сом" },
+    { type: "GROUP" as CourseType, duration: "6 месяцев", price: "15 000 сом" },
+    { type: "INDIVIDUAL" as CourseType, duration: "1 месяц", price: "20 000 сом" },
   ],
 };
 
-export const STUDENTS: Student[] = [
+/* ---------- языки ---------- */
+
+export const LANGUAGES: Language[] = [
+  { code: "en", name: "English", nameRu: "Английский язык" },
+  { code: "ru", name: "Russian", nameRu: "Русский язык" },
+];
+
+export function languageName(code: LanguageCode) {
+  return LANGUAGES.find((l) => l.code === code)?.name ?? code;
+}
+export function languageNameRu(code: LanguageCode) {
+  return LANGUAGES.find((l) => l.code === code)?.nameRu ?? code;
+}
+
+/* ---------- курсы (продукты) ---------- */
+
+const DEFAULT_LEVEL_PLAN: { month: number; level: CefrLevel }[] = [
+  { month: 1, level: "A1" },
+  { month: 2, level: "A2" },
+  { month: 3, level: "B1" },
+  { month: 4, level: "B1" },
+  { month: 5, level: "B2" },
+  { month: 6, level: "B2" },
+];
+
+export const COURSE_PRODUCTS: CourseProduct[] = [
   {
-    id: "s1",
-    login: "kanat",
-    password: "test123",
-    firstName: "Канат",
-    lastName: "Уметов",
-    phone: "+996 700 112 233",
-    type: "GROUP",
-    startDate: "2026-08-18",
-    endDate: "2026-11-18",
-    status: "active",
-    openedUpTo: 1,
-    completed: [],
-    completedAt: {},
-    watched: {},
-    lastActivity: "2026-08-18",
-    avatarTone: "var(--tone-1)",
+    id: "en-group",
+    language: "en",
+    format: "GROUP",
+    title: "English Group",
+    durationMonths: 6,
+    price: 15000,
+    currency: "сом",
+    features: ["Теория", "Тесты", "Повторение", "Групповая практика", "Преподаватель", "Google Meet"],
+    levelPlan: DEFAULT_LEVEL_PLAN,
   },
   {
-    id: "s2",
-    login: "alina",
-    password: "test123",
-    firstName: "Алина",
-    lastName: "Ким",
-    phone: "+996 555 908 771",
-    type: "GROUP",
-    startDate: "2026-08-18",
-    endDate: "2026-11-18",
-    status: "active",
-    openedUpTo: 1,
-    completed: [],
-    completedAt: {},
-    watched: {},
-    lastActivity: "2026-08-17",
-    avatarTone: "var(--tone-2)",
+    id: "ru-group",
+    language: "ru",
+    format: "GROUP",
+    title: "Russian Group",
+    durationMonths: 6,
+    price: 12000,
+    currency: "сом",
+    features: ["Теория", "Тесты", "Повторение", "Групповая практика", "Преподаватель", "Google Meet"],
+    levelPlan: DEFAULT_LEVEL_PLAN,
   },
   {
-    id: "s3",
-    login: "aibek",
-    password: "test123",
-    firstName: "Айбек",
-    lastName: "Сатыбалдиев",
-    phone: "+996 707 445 010",
-    type: "INDIVIDUAL",
-    startDate: "2026-08-05",
-    endDate: "2026-09-05",
-    status: "active",
-    openedUpTo: 1,
-    completed: [],
-    completedAt: {},
-    watched: {},
-    lastActivity: "2026-08-18",
-    avatarTone: "var(--tone-3)",
+    id: "en-individual",
+    language: "en",
+    format: "INDIVIDUAL",
+    title: "English Individual",
+    durationMonths: 1,
+    price: 20000,
+    currency: "сом",
+    features: ["Индивидуальная практика с преподавателем", "Та же теория, что в English Group"],
+    levelPlan: DEFAULT_LEVEL_PLAN,
   },
   {
-    id: "s4",
-    login: "nurai",
-    password: "test123",
-    firstName: "Нурай",
-    lastName: "Асанова",
-    phone: "+996 559 220 118",
-    type: "GROUP",
-    startDate: "2026-05-10",
-    endDate: "2026-08-10",
-    status: "expired",
-    openedUpTo: 1,
-    completed: [],
-    completedAt: {},
-    watched: {},
-    lastActivity: "2026-08-09",
-    avatarTone: "var(--tone-4)",
-  },
-  {
-    id: "s5",
-    login: "elmira",
-    password: "test123",
-    firstName: "Эльмира",
-    lastName: "Джолдошева",
-    phone: "+996 700 330 447",
-    type: "INDIVIDUAL",
-    startDate: "2026-08-12",
-    endDate: "2026-09-12",
-    status: "disabled",
-    openedUpTo: 1,
-    completed: [],
-    completedAt: {},
-    watched: {},
-    lastActivity: "2026-08-14",
-    avatarTone: "var(--tone-5)",
+    id: "ru-individual",
+    language: "ru",
+    format: "INDIVIDUAL",
+    title: "Russian Individual",
+    durationMonths: 1,
+    price: 20000,
+    currency: "сом",
+    features: ["Индивидуальная практика с преподавателем", "Та же теория, что в Russian Group"],
+    levelPlan: DEFAULT_LEVEL_PLAN,
   },
 ];
+
+export function courseProduct(language: LanguageCode, format: CourseType) {
+  return (
+    COURSE_PRODUCTS.find((c) => c.language === language && c.format === format) ?? COURSE_PRODUCTS[0]!
+  );
+}
+
+/* ---------- преподаватели ---------- */
+
+export const TEACHERS: Teacher[] = [
+  { id: "t1", name: "Айжан Осмонова", languages: ["en"], status: "active", phone: "+996 700 010 011", tone: "var(--tone-1)" },
+  { id: "t2", name: "Бек Турдубеков", languages: ["en"], status: "active", phone: "+996 700 010 022", tone: "var(--tone-2)" },
+  { id: "t3", name: "Азамат Кылычбеков", languages: ["en", "ru"], status: "replacement", phone: "+996 700 010 033", tone: "var(--tone-3)" },
+  { id: "t4", name: "Динара Асанова", languages: ["ru"], status: "active", phone: "+996 700 010 044", tone: "var(--tone-4)" },
+  { id: "t5", name: "Гульнара Садыкова", languages: ["ru"], status: "absent", phone: "+996 700 010 055", tone: "var(--tone-5)" },
+  { id: "t6", name: "Мээрим Абдыраева", languages: ["en", "ru"], status: "active", phone: "+996 700 010 066", tone: "var(--tone-2)" },
+];
+
+/* ---------- группы ---------- */
+
+export function groupCodePrefix(language: LanguageCode) {
+  return language === "en" ? "EN" : "RU";
+}
+
+/** Следующий свободный код потока для языка: EN-01, EN-02, … */
+export function nextGroupCode(groups: Group[], language: LanguageCode) {
+  const prefix = groupCodePrefix(language);
+  const used = groups
+    .filter((g) => g.language === language)
+    .map((g) => Number(g.code.split("-")[1]) || 0);
+  const n = (used.length ? Math.max(...used) : 0) + 1;
+  return `${prefix}-${String(n).padStart(2, "0")}`;
+}
+
+export function groupName(code: string, language: LanguageCode, startDate: string, time: string) {
+  const d = new Date(startDate);
+  const label = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
+  return `${code} · ${languageNameRu(language)} · ${label} · ${time}`;
+}
+
+function endAfterMonths(startDate: string, months: number) {
+  const d = new Date(startDate);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
+
+function makeGroup(
+  id: string,
+  language: LanguageCode,
+  startDate: string,
+  practiceStart: string,
+  practiceEnd: string,
+  teacherId: string | null,
+  status: GroupStatus,
+  currentLesson: number,
+  meetUrl: string,
+  maxStudents = 50,
+): Omit<Group, "code" | "name"> {
+  return {
+    id,
+    language,
+    startDate,
+    endDate: endAfterMonths(startDate, 6),
+    practiceStart,
+    practiceEnd,
+    teacherId,
+    maxStudents,
+    status,
+    currentLesson,
+    meetUrl,
+  };
+}
+
+/** Нумерует потоки по языку в порядке даты старта: EN-01, EN-02, … / RU-01, … */
+function assignGroupCodes(rows: Omit<Group, "code" | "name">[]): Group[] {
+  const counters: Record<string, number> = {};
+  const codeById: Record<string, string> = {};
+  for (const g of [...rows].sort((a, b) => a.startDate.localeCompare(b.startDate))) {
+    const prefix = groupCodePrefix(g.language);
+    counters[prefix] = (counters[prefix] ?? 0) + 1;
+    codeById[g.id] = `${prefix}-${String(counters[prefix]).padStart(2, "0")}`;
+  }
+  return rows.map((g) => {
+    const code = codeById[g.id]!;
+    return { ...g, code, name: groupName(code, g.language, g.startDate, g.practiceStart) };
+  });
+}
+
+export const GROUPS: Group[] = assignGroupCodes([
+  makeGroup("g-en-0824", "en", "2026-08-18", "20:00", "21:00", "t1", "active", 4, "https://meet.google.com/eng-0818-grp"),
+  makeGroup("g-en-0907", "en", "2026-09-07", "20:00", "21:00", "t2", "recruiting", 1, "https://meet.google.com/eng-0907-grp"),
+  makeGroup("g-en-0914", "en", "2026-09-14", "21:00", "22:00", null, "recruiting", 1, ""),
+  makeGroup("g-en-0921", "en", "2026-09-21", "21:00", "22:00", null, "recruiting", 1, "https://meet.google.com/eng-0921-grp"),
+  makeGroup("g-ru-0824", "ru", "2026-08-18", "20:00", "21:00", "t4", "active", 4, "https://meet.google.com/rus-0818-grp"),
+  makeGroup("g-ru-0907", "ru", "2026-09-07", "20:00", "21:00", "t5", "recruiting", 1, ""),
+  makeGroup("g-ru-0914", "ru", "2026-09-14", "21:00", "22:00", null, "recruiting", 1, "https://meet.google.com/rus-0914-grp"),
+  makeGroup("g-en-0518", "en", "2026-05-10", "21:00", "22:00", "t1", "finished", 54, "https://meet.google.com/eng-old-grp"),
+]);
+
+/* ---------- ученики ---------- */
+
+function payment(total: number, paid: number, purchaseDate: string): PaymentInfo {
+  return {
+    totalCost: total,
+    paid,
+    purchaseDate,
+    status: paid >= total ? "full" : paid > 0 ? "partial" : "unpaid",
+  };
+}
+
+const CITIES = ["Бишкек", "Ош", "Джалал-Абад", "Каракол", "Токмок", "Нарын", "Талас", "Баткен"];
+const FIRST_NAMES = ["Айгерим", "Нурбек", "Азиз", "Салтанат", "Тимур", "Жамиля", "Эрлан", "Гулназ", "Максат", "Асель", "Бакыт", "Динара", "Руслан", "Чолпон", "Данияр", "Айпери", "Кубат", "Мээрим", "Улан", "Назгуль"];
+const LAST_NAMES = ["Абдиев", "Токтосунова", "Мамытов", "Исакова", "Орозов", "Бекова", "Сыдыков", "Алиева", "Жумабаев", "Турсунова", "Касымов", "Эргешова", "Досов", "Бейшеналиева", "Уметалиев", "Кадырова"];
+
+const HAND_STUDENTS: Student[] = [
+  {
+    id: "s1", login: "kanat", password: "test123", firstName: "Канат", lastName: "Уметов",
+    phone: "+996 700 112 233", language: "en", type: "GROUP", age: 27, city: "Бишкек",
+    groupId: "g-en-0824", teacherId: "t1", startDate: "2026-08-18", endDate: "2027-02-18",
+    status: "active", openedUpTo: 4, completed: [1, 2], completedAt: { 1: "2026-08-18", 2: "2026-08-20" },
+    watched: { 3: 40 }, lastActivity: "2026-08-18", avatarTone: "var(--tone-1)", onboarded: true,
+    managerName: "Нурбол", payment: payment(15000, 15000, "2026-08-10"),
+  },
+  {
+    id: "s2", login: "alina", password: "test123", firstName: "Алина", lastName: "Ким",
+    phone: "+996 555 908 771", language: "en", type: "GROUP", age: 24, city: "Бишкек",
+    groupId: "g-en-0824", teacherId: "t1", startDate: "2026-08-18", endDate: "2027-02-18",
+    status: "active", openedUpTo: 4, completed: [1, 2, 3], completedAt: { 1: "2026-08-18", 2: "2026-08-19", 3: "2026-08-21" },
+    watched: {}, lastActivity: "2026-08-17", avatarTone: "var(--tone-2)", onboarded: true,
+    managerName: "Нурбол", payment: payment(15000, 7500, "2026-08-11"),
+  },
+  {
+    id: "s3", login: "aibek", password: "test123", firstName: "Айбек", lastName: "Сатыбалдиев",
+    phone: "+996 707 445 010", language: "en", type: "INDIVIDUAL", age: 31, city: "Ош",
+    groupId: null, teacherId: "t2", startDate: "2026-08-05", endDate: "2026-09-05",
+    status: "active", openedUpTo: 7, completed: [1, 2, 3, 4, 5, 6], completedAt: { 1: "2026-08-05" },
+    watched: { 7: 60 }, lastActivity: "2026-08-18", avatarTone: "var(--tone-3)", onboarded: true,
+    managerName: "Нурбол", payment: payment(20000, 20000, "2026-08-01"),
+  },
+  {
+    id: "s4", login: "nurai", password: "test123", firstName: "Нурай", lastName: "Асанова",
+    phone: "+996 559 220 118", language: "en", type: "GROUP", age: 29, city: "Каракол",
+    groupId: "g-en-0518", teacherId: "t1", startDate: "2026-05-10", endDate: "2026-11-10",
+    status: "expired", openedUpTo: 54, completed: Array.from({ length: 40 }, (_, i) => i + 1),
+    completedAt: {}, watched: {}, lastActivity: "2026-08-09", avatarTone: "var(--tone-4)", onboarded: true,
+    managerName: "Азамат", payment: payment(15000, 15000, "2026-05-02"),
+  },
+  {
+    id: "s5", login: "elmira", password: "test123", firstName: "Эльмира", lastName: "Джолдошева",
+    phone: "+996 700 330 447", language: "ru", type: "INDIVIDUAL", age: 22, city: "Джалал-Абад",
+    groupId: null, teacherId: "t4", startDate: "2026-08-12", endDate: "2026-09-12",
+    status: "disabled", openedUpTo: 1, completed: [], completedAt: {}, watched: {},
+    lastActivity: "2026-08-14", avatarTone: "var(--tone-5)", onboarded: false,
+    managerName: "Нурбол", payment: payment(20000, 5000, "2026-08-12"),
+  },
+];
+
+const TONES = ["var(--tone-1)", "var(--tone-2)", "var(--tone-3)", "var(--tone-4)", "var(--tone-5)"];
+
+function generateStudents(count: number): Student[] {
+  const recruitingGroups = GROUPS.filter((g) => g.status === "recruiting" || g.status === "active");
+  const out: Student[] = [];
+  for (let i = 0; i < count; i++) {
+    const n = i + 6;
+    const language: LanguageCode = i % 3 === 0 ? "ru" : "en";
+    const isIndividual = i % 7 === 0;
+    const type: CourseType = isIndividual ? "INDIVIDUAL" : "GROUP";
+    const product = courseProduct(language, type);
+    const pool = recruitingGroups.filter((g) => g.language === language);
+    const group = !isIndividual && pool.length ? pool[i % pool.length]! : null;
+    const startDate = group ? group.startDate : "2026-08-20";
+    const openedUpTo = group ? group.currentLesson : 1 + (i % 6);
+    const completedCount = Math.max(0, Math.min(openedUpTo - 1, (i * 3) % (openedUpTo + 1)));
+    const status: AccessStatus = i % 13 === 0 ? "expired" : i % 17 === 0 ? "disabled" : "active";
+    const lastActivity =
+      i % 5 === 0 ? "2026-08-12" : i % 3 === 0 ? "2026-08-16" : i % 2 === 0 ? "2026-08-17" : "2026-08-18";
+    const teacherId = isIndividual
+      ? (TEACHERS.filter((t) => t.languages.includes(language))[i % 2]?.id ?? null)
+      : (group?.teacherId ?? null);
+    const paid = i % 4 === 0 ? Math.round(product.price * 0.3) : product.price;
+    out.push({
+      id: `s${n}`,
+      login: `student${n}`,
+      password: "test123",
+      firstName: FIRST_NAMES[i % FIRST_NAMES.length]!,
+      lastName: LAST_NAMES[i % LAST_NAMES.length]!,
+      phone: `+996 ${500 + (i % 99)} ${100 + (i % 800)} ${100 + (i % 800)}`,
+      language,
+      type,
+      age: 18 + (i % 30),
+      city: CITIES[i % CITIES.length]!,
+      groupId: group?.id ?? null,
+      teacherId,
+      startDate,
+      endDate: endAfterMonths(startDate, product.durationMonths),
+      status,
+      openedUpTo,
+      completed: Array.from({ length: completedCount }, (_, k) => k + 1),
+      completedAt: {},
+      watched: completedCount < openedUpTo ? { [openedUpTo]: (i * 17) % 100 } : {},
+      lastActivity,
+      avatarTone: TONES[i % TONES.length]!,
+      onboarded: i % 6 !== 0,
+      managerName: ["Нурбол", "Азамат", "Салима"][i % 3]!,
+      payment: payment(product.price, paid, startDate),
+    });
+  }
+  return out;
+}
+
+export const STUDENTS: Student[] = [...HAND_STUDENTS, ...generateStudents(46)];
 
 export const CURATOR = {
   id: "c1",
@@ -301,45 +567,63 @@ export const CURATOR = {
 export const MEETINGS: Meeting[] = [
   {
     id: "m1",
-    lessonOrder: 18,
+    lessonOrder: 4,
     studentId: "group",
-    title: "Практика: Present Perfect",
+    groupId: "g-en-0824",
+    title: "Практика: Артикли a / an / the",
     date: "2026-08-19",
-    startTime: "21:00",
-    endTime: "22:00",
-    meetUrl: "https://meet.google.com/abc-defg-hij",
+    startTime: "20:00",
+    endTime: "21:00",
+    meetUrl: "https://meet.google.com/eng-0818-grp",
     type: "GROUP",
     status: "scheduled",
   },
   {
     id: "m2",
-    lessonOrder: 19,
+    lessonOrder: 5,
     studentId: "group",
-    title: "Практика: Present Perfect vs Past Simple",
+    groupId: "g-en-0824",
+    title: "Практика: Множественное число",
     date: "2026-08-21",
-    startTime: "21:00",
-    endTime: "22:00",
-    meetUrl: "https://meet.google.com/xyz-qwer-tyu",
+    startTime: "20:00",
+    endTime: "21:00",
+    meetUrl: "https://meet.google.com/eng-0818-grp",
     type: "GROUP",
     status: "scheduled",
   },
   {
     id: "m3",
-    lessonOrder: 17,
+    lessonOrder: 3,
     studentId: "group",
-    title: "Практика: Past Simple",
+    groupId: "g-en-0824",
+    title: "Практика: Личные местоимения",
     date: "2026-08-17",
-    startTime: "21:00",
-    endTime: "22:00",
-    meetUrl: "https://meet.google.com/old-past-smp",
+    startTime: "20:00",
+    endTime: "21:00",
+    meetUrl: "https://meet.google.com/eng-0818-grp",
     type: "GROUP",
     status: "completed",
+    attended: ["s1", "s2"],
   },
   {
     id: "m4",
-    lessonOrder: 8,
+    lessonOrder: 4,
+    studentId: "group",
+    groupId: "g-ru-0824",
+    title: "Практика: Русский · Lesson 4",
+    date: "2026-08-19",
+    startTime: "20:00",
+    endTime: "21:00",
+    meetUrl: "https://meet.google.com/rus-0818-grp",
+    type: "GROUP",
+    status: "scheduled",
+  },
+  {
+    id: "m5",
+    lessonOrder: 7,
     studentId: "s3",
-    title: "Индивидуальная практика: Present Simple",
+    groupId: null,
+    title: "Индивидуальная практика: Числа и время",
     date: "2026-08-19",
     startTime: "19:00",
     endTime: "20:00",

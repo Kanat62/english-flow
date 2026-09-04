@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BookOpen, ChevronRight, Clock3, Lock, Search, Unlock, Upload, Video, X } from "lucide-react";
+import { BookOpen, ChevronRight, Clock3, Layers, Search, Upload, Video, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { COURSE } from "@/lib/mock-data";
-import { publishedUpTo, useApp } from "@/lib/store";
+import { COURSE_PRODUCTS } from "@/lib/mock-data";
+import { useApp } from "@/lib/store";
 import { CuratorShell } from "@/components/CuratorShell";
-import { EmptyState, Pill, SectionTitle, VideoPlayer } from "@/components/shared";
+import { EmptyState, LangPill, SectionTitle, VideoPlayer } from "@/components/shared";
 
 export const Route = createFileRoute("/curator/course/")({
   head: () => ({
@@ -27,8 +27,7 @@ export const Route = createFileRoute("/curator/course/")({
 });
 
 function CuratorCourse() {
-  const { meetings, students, lessons, publishLesson, unpublishLesson, testVideoUrl, setTestVideoUrl } =
-    useApp();
+  const { meetings, lessons, testVideoUrl, setTestVideoUrl } = useApp();
   const [query, setQuery] = useState("");
   const [uploadedName, setUploadedName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,31 +40,54 @@ function CuratorCourse() {
     [lessons, query],
   );
 
-  const allPublishedUpTo = publishedUpTo(students);
-
-  const toggleLesson = (order: number, isOpen: boolean) => {
-    if (isOpen) {
-      unpublishLesson(order);
-      toast.success(
-        order < allPublishedUpTo
-          ? `Урок ${order} и последующие закрыты`
-          : `Урок ${order} закрыт`,
-      );
-    } else {
-      publishLesson(order);
-      toast.success(`Урок ${order} опубликован для всех`);
-    }
-  };
-
   return (
     <div className="space-y-5 rise-in">
       <header>
-        <h1 className="text-2xl font-extrabold sm:text-3xl">Курс English</h1>
+        <h1 className="text-2xl font-extrabold sm:text-3xl">Курсы и контент</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {lessons.length} уроков · открыто {allPublishedUpTo}/{lessons.length} ·{" "}
-          {COURSE.variants.map((v) => `${v.type} ${v.duration}`).join(" · ")}
+          Один теоретический контент — несколько форматов. Практика отличается, теория общая.
         </p>
       </header>
+
+      <section>
+        <SectionTitle title="Продукты" icon={Layers} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          {COURSE_PRODUCTS.map((c) => (
+            <div key={c.id} className="surface-card space-y-2 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-extrabold">{c.title}</p>
+                <LangPill code={c.language} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {c.format === "GROUP" ? "Групповой" : "Индивидуальный"} · {c.durationMonths} мес ·{" "}
+                {c.price.toLocaleString("ru")} {c.currency}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {c.features.map((feat) => (
+                  <span
+                    key={feat}
+                    className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                  >
+                    {feat}
+                  </span>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Программа:{" "}
+                {c.levelPlan.map((p) => `M${p.month}→${p.level}`).join(" · ")}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="surface-card flex items-start gap-3 p-4">
+        <Layers className="mt-0.5 size-4 shrink-0 text-primary" />
+        <p className="text-xs text-muted-foreground">
+          Здесь готовится общий контент курса — тексты уроков, видео и тесты. Доступ к урокам
+          не выдаётся на этом экране: он открывается каждой группе отдельно на экране группы.
+        </p>
+      </div>
 
       <div className="surface-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -136,58 +158,30 @@ function CuratorCourse() {
         <div className="surface-card divide-y divide-border overflow-hidden">
           {list.map((l) => {
             const practice = meetings.find((m) => m.lessonOrder === l.order);
-            const open = l.order <= allPublishedUpTo;
             return (
-              <div
+              <Link
                 key={l.id}
-                className="flex flex-wrap items-center gap-3 px-4 py-3.5 transition hover:bg-muted/30"
+                to="/curator/course/$order"
+                params={{ order: String(l.order) }}
+                className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-muted/30"
               >
-                <Link
-                  to="/curator/course/$order"
-                  params={{ order: String(l.order) }}
-                  className="flex min-w-0 flex-1 items-center gap-3"
-                >
-                  <span
-                    className={`grid size-9 shrink-0 place-items-center rounded-xl text-xs font-extrabold ${
-                      open ? "bg-success-soft text-success" : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {l.order}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold">{l.title}</p>
-                    <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
-                      <Clock3 className="size-3 shrink-0" /> {l.duration} · {l.block}
-                      {practice && (
-                        <>
-                          {" "}
-                          · <Video className="size-3 shrink-0" /> практика
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                </Link>
-
-                <button
-                  onClick={() => toggleLesson(l.order, open)}
-                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
-                    open
-                      ? "bg-success-soft text-success hover:bg-warning-soft hover:text-warning"
-                      : "gradient-primary text-primary-foreground"
-                  }`}
-                >
-                  {open ? (
-                    <>
-                      <Unlock className="size-3.5" /> Открыт
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="size-3.5" /> Закрыт
-                    </>
-                  )}
-                </button>
-              </div>
+                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-xs font-extrabold text-muted-foreground">
+                  {l.order}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold">{l.title}</p>
+                  <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+                    <Clock3 className="size-3 shrink-0" /> {l.duration} · {l.block}
+                    {practice && (
+                      <>
+                        {" "}
+                        · <Video className="size-3 shrink-0" /> практика
+                      </>
+                    )}
+                  </p>
+                </div>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+              </Link>
             );
           })}
         </div>

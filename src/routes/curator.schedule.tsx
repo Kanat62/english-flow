@@ -1,22 +1,30 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CalendarDays, Plus, Video } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { TODAY, type CourseType, type MeetingStatus } from "@/lib/mock-data";
-import { formatDate, relativeDay, useApp } from "@/lib/store";
+import { TODAY, type MeetingStatus } from "@/lib/mock-data";
+import {
+  formatDate,
+  groupStage,
+  studentsInGroup,
+  teacherOf,
+  useApp,
+  weekRangeOf,
+  weekdayFull,
+} from "@/lib/store";
 import { CuratorShell } from "@/components/CuratorShell";
 import { EmptyState, MeetingPill, Pill, SectionTitle } from "@/components/shared";
 
 export const Route = createFileRoute("/curator/schedule")({
+  validateSearch: (search: Record<string, unknown>): { new?: number } =>
+    search["new"] ? { new: 1 } : {},
   head: () => ({
     meta: [
-      { title: "Расписание практик — кабинет куратора" },
+      { title: "Расписание — кабинет куратора" },
       {
         name: "description",
-        content: "Все практические занятия школы: даты, время, ссылки Google Meet и статусы.",
+        content: "Практики академии: сегодня, эта неделя и следующая, сгруппированы по времени.",
       },
-      { property: "og:title", content: "Расписание практик" },
-      { property: "og:description", content: "Создание практик и управление статусами." },
     ],
   }),
   component: () => (
@@ -26,163 +34,208 @@ export const Route = createFileRoute("/curator/schedule")({
   ),
 });
 
-function CuratorSchedule() {
-  const { meetings, addMeeting, updateMeeting, students, lessons } = useApp();
-  const [f, setF] = useState({
-    lessonOrder: 18,
-    studentId: "group",
-    date: TODAY,
-    time: "21:00",
-    url: "",
-  });
+const RANGES = ["Сегодня", "Эта неделя", "Следующая неделя"] as const;
+const field =
+  "w-full rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-medium outline-none focus:border-primary";
 
-  const sorted = [...meetings].sort((a, b) => (b.date + b.startTime).localeCompare(a.date + a.startTime));
-  const days = [...new Set(sorted.map((m) => m.date))];
+function CuratorSchedule() {
+  const { new: openNew } = Route.useSearch();
+  const { meetings, groups, teachers, students, lessons, addMeeting, updateMeeting } = useApp();
+  const [range, setRange] = useState<(typeof RANGES)[number]>("Сегодня");
+  const [showForm, setShowForm] = useState(Boolean(openNew));
+  const [f, setF] = useState({ groupId: groups[0]?.id ?? "", date: TODAY, url: "" });
+
+  const dates = useMemo(() => {
+    if (range === "Сегодня") return [TODAY];
+    const anchor = new Date(TODAY);
+    if (range === "Следующая неделя") anchor.setDate(anchor.getDate() + 7);
+    return weekRangeOf(anchor.toISOString().slice(0, 10));
+  }, [range]);
+
+  const inRange = meetings
+    .filter((m) => dates.includes(m.date))
+    .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
+
+  const byDate = dates
+    .map((d) => ({ date: d, items: inRange.filter((m) => m.date === d) }))
+    .filter((x) => x.items.length > 0);
 
   const create = () => {
-    if (!f.url) {
+    const g = groups.find((x) => x.id === f.groupId);
+    if (!g) {
+      toast.error("Выберите группу");
+      return;
+    }
+    if (!f.url && !g.meetUrl) {
       toast.error("Добавьте ссылку Google Meet");
       return;
     }
-    const [h, min] = f.time.split(":");
-    const student = students.find((s) => s.id === f.studentId);
+    const stage = groupStage(g, lessons);
     addMeeting({
       id: `m-${Date.now()}`,
-      lessonOrder: f.lessonOrder,
-      studentId: f.studentId,
-      title: `Практика: ${lessons[f.lessonOrder - 1]?.title ?? ""}`,
+      lessonOrder: g.currentLesson,
+      studentId: "group",
+      groupId: g.id,
+      title: `Практика: ${stage.topic}`,
       date: f.date,
-      startTime: f.time,
-      endTime: `${String((Number(h) + 1) % 24).padStart(2, "0")}:${min}`,
-      meetUrl: f.url,
-      type: (student ? student.type : "GROUP") as CourseType,
+      startTime: g.practiceStart,
+      endTime: g.practiceEnd,
+      meetUrl: f.url || g.meetUrl,
+      type: "GROUP",
       status: "scheduled",
     });
     setF({ ...f, url: "" });
     toast.success("Практика создана");
   };
 
-  const field =
-    "w-full rounded-xl border border-input bg-surface px-3 py-2.5 text-sm font-medium outline-none focus:border-primary";
-
   return (
     <div className="space-y-5 rise-in">
-      <header>
-        <h1 className="text-2xl font-extrabold sm:text-3xl">Расписание</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Практики в Google Meet для группы и индивидуальных учеников.
-        </p>
-      </header>
-
-      <section className="surface-card p-5">
-        <SectionTitle title="Новая практика" icon={Plus} />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <select
-            className={field}
-            value={f.lessonOrder}
-            onChange={(e) => setF({ ...f, lessonOrder: Number(e.target.value) })}
-          >
-            {lessons.map((l) => (
-              <option key={l.id} value={l.order}>
-                {l.order}. {l.title}
-              </option>
-            ))}
-          </select>
-          <select
-            className={field}
-            value={f.studentId}
-            onChange={(e) => setF({ ...f, studentId: e.target.value })}
-          >
-            <option value="group">Группа (все Group)</option>
-            {students
-              .filter((s) => s.type === "INDIVIDUAL")
-              .map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.firstName} {s.lastName}
-                </option>
-              ))}
-          </select>
-          <input
-            type="date"
-            className={field}
-            value={f.date}
-            onChange={(e) => setF({ ...f, date: e.target.value })}
-          />
-          <input
-            type="time"
-            className={field}
-            value={f.time}
-            onChange={(e) => setF({ ...f, time: e.target.value })}
-          />
-          <input
-            className={field}
-            placeholder="Google Meet URL"
-            value={f.url}
-            onChange={(e) => setF({ ...f, url: e.target.value })}
-          />
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold sm:text-3xl">Расписание</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Практики групп и индивидуальных учеников в Google Meet.
+          </p>
         </div>
         <button
-          onClick={create}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl gradient-primary py-3 text-sm font-bold text-primary-foreground shadow-glow sm:w-auto sm:px-6"
+          onClick={() => setShowForm((v) => !v)}
+          className="inline-flex items-center gap-2 rounded-xl gradient-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-glow"
         >
           <Plus className="size-4" /> Создать практику
         </button>
-      </section>
+      </header>
 
-      {days.length === 0 && <EmptyState icon={CalendarDays} title="Практик пока нет" />}
-
-      {days.map((day) => (
-        <section key={day}>
-          <SectionTitle title={`${relativeDay(day)} · ${formatDate(day)}`} icon={CalendarDays} />
-          <div className="space-y-2.5">
-            {sorted
-              .filter((m) => m.date === day)
-              .map((m) => {
-                const student = students.find((s) => s.id === m.studentId);
-                return (
-                  <div key={m.id} className="surface-card flex flex-wrap items-center gap-3 p-4">
-                    <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
-                      <Video className="size-5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-extrabold">{m.title}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {m.startTime}–{m.endTime} ·{" "}
-                        {m.studentId === "group"
-                          ? "Группа"
-                          : `${student?.firstName ?? "Ученик"} ${student?.lastName ?? ""}`}{" "}
-                        · урок {m.lessonOrder}
-                      </p>
-                    </div>
-                    <Pill tone={m.type === "GROUP" ? "neutral" : "primary"}>
-                      {m.type === "GROUP" ? "Group" : "Individual"}
-                    </Pill>
-                    <MeetingPill status={m.status} />
-                    <select
-                      value={m.status}
-                      onChange={(e) =>
-                        updateMeeting(m.id, { status: e.target.value as MeetingStatus })
-                      }
-                      className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-bold outline-none"
-                    >
-                      <option value="scheduled">Scheduled</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                    <a
-                      href={m.meetUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-lg gradient-primary px-3.5 py-2 text-xs font-bold text-primary-foreground"
-                    >
-                      Meet
-                    </a>
-                  </div>
-                );
-              })}
+      {showForm && (
+        <section className="surface-card p-5">
+          <SectionTitle title="Новая практика" icon={Plus} />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <select
+              className={field}
+              value={f.groupId}
+              onChange={(e) => setF({ ...f, groupId: e.target.value })}
+            >
+              {groups
+                .filter((g) => g.status === "active" || g.status === "recruiting")
+                .map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+            </select>
+            <input
+              type="date"
+              className={field}
+              value={f.date}
+              onChange={(e) => setF({ ...f, date: e.target.value })}
+            />
+            <input
+              className={field}
+              placeholder="Google Meet URL (или ссылка группы)"
+              value={f.url}
+              onChange={(e) => setF({ ...f, url: e.target.value })}
+            />
+            <button
+              onClick={create}
+              className="inline-flex items-center justify-center gap-2 rounded-xl gradient-primary py-2.5 text-sm font-bold text-primary-foreground"
+            >
+              <Plus className="size-4" /> Создать
+            </button>
           </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Время берётся из настроек группы — вечерний слот не зашит в код.
+          </p>
         </section>
-      ))}
+      )}
+
+      <div className="flex gap-2 overflow-x-auto">
+        {RANGES.map((r) => (
+          <button
+            key={r}
+            onClick={() => setRange(r)}
+            className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${
+              range === r
+                ? "gradient-primary text-primary-foreground shadow-glow"
+                : "border border-border bg-surface text-muted-foreground"
+            }`}
+          >
+            {r}
+          </button>
+        ))}
+      </div>
+
+      {byDate.length === 0 && <EmptyState icon={CalendarDays} title="Практик в этом периоде нет" />}
+
+      {byDate.map(({ date, items }) => {
+        const slots = [...new Set(items.map((m) => m.startTime))].sort();
+        return (
+          <section key={date}>
+            <SectionTitle
+              title={`${weekdayFull(date)} · ${formatDate(date)}`}
+              icon={CalendarDays}
+            />
+            {slots.map((slot) => (
+              <div key={slot} className="mb-3">
+                <p className="mb-1.5 text-xs font-bold text-muted-foreground">{slot}</p>
+                <div className="space-y-2">
+                  {items
+                    .filter((m) => m.startTime === slot)
+                    .map((m) => {
+                      const g = groups.find((x) => x.id === m.groupId);
+                      const teacher = g ? teacherOf(teachers, g.teacherId) : null;
+                      const count = g ? studentsInGroup(students, g.id).length : 1;
+                      return (
+                        <div
+                          key={m.id}
+                          className="surface-card flex flex-wrap items-center gap-3 p-4"
+                        >
+                          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+                            <Video className="size-5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-extrabold">
+                              {g ? g.name : m.title}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {m.startTime}–{m.endTime} · {teacher?.name ?? "без преподавателя"} ·{" "}
+                              {count} учеников
+                            </p>
+                          </div>
+                          <Pill tone={m.type === "GROUP" ? "neutral" : "primary"}>
+                            {m.type === "GROUP" ? "Group" : "Individual"}
+                          </Pill>
+                          <MeetingPill status={m.status} />
+                          <select
+                            value={m.status}
+                            onChange={(e) =>
+                              updateMeeting(m.id, { status: e.target.value as MeetingStatus })
+                            }
+                            className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-bold outline-none"
+                          >
+                            <option value="scheduled">Scheduled</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                          {m.meetUrl ? (
+                            <a
+                              href={m.meetUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded-lg gradient-primary px-3.5 py-2 text-xs font-bold text-primary-foreground"
+                            >
+                              Meet
+                            </a>
+                          ) : (
+                            <span className="text-xs font-bold text-warning">нет ссылки</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            ))}
+          </section>
+        );
+      })}
     </div>
   );
 }

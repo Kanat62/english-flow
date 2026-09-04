@@ -95,7 +95,7 @@ function LoginPage() {
         </div>
 
         <p className="relative text-xs text-white/60">
-          Group · 3 месяца · 10 000 сом &nbsp;•&nbsp; Individual · 1 месяц · 25 000 сом
+          Group · 6 месяцев · 15 000 сом &nbsp;•&nbsp; Individual · 1 месяц · 20 000 сом
         </p>
       </section>
 
